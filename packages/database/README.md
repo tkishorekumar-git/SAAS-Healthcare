@@ -25,11 +25,11 @@ packages/database/
 
 ## Database roles
 
-| Role               | Used by                     | Can do                                                                     |
-| ------------------ | --------------------------- | -------------------------------------------------------------------------- |
-| `kenisha_migrator` | Prisma CLI (migrations)     | Owns the `kenisha` schema and every table. Never used by running services. |
-| `kenisha_app`      | NestJS API                  | Tenant data **only for the tenant set by `withTenant()`**. No DELETE.      |
-| `kenisha_platform` | Super Admin tooling (later) | Tenants, plans, subscriptions. **No privileges on tenant-owned tables.**   |
+| Role               | Used by                   | Can do                                                                                                                                                               |
+| ------------------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kenisha_migrator` | Prisma CLI (migrations)   | Owns the `kenisha` schema and every table. Never used by running services.                                                                                           |
+| `kenisha_app`      | NestJS API                | Tenant data **only for the tenant set by `withTenant()`**. No DELETE.                                                                                                |
+| `kenisha_platform` | API `/platform` endpoints | Tenants, plans, subscriptions, platform users/sessions/audit; may _create_ support access requests but never approve them. **No privileges on tenant-owned tables.** |
 
 All three are `NOSUPERUSER NOBYPASSRLS`. Every table has RLS **enabled and forced**.
 
@@ -73,10 +73,13 @@ work. Outside `run()` the API role sees **no** tenant rows.
    - **Never** grant anything on tenant-owned tables to `kenisha_platform` (ADR-0002, D2).
 3. Add integration tests in `test/` proving the new table is isolated.
 4. Apply with `pnpm db:migrate:dev`, run `pnpm test:db`.
-5. Migrations are **never edited after merge** — fix forward with a new migration.
-6. Production applies migrations with `pnpm db:migrate:deploy` only (never `migrate dev`/`db push`).
-7. Destructive changes (drop/rename column) use expand → migrate → contract across releases.
-8. Data backfills run as a role with an explicit policy; the owner role is subject to forced RLS too.
+5. Wrap hand-written migrations in `BEGIN;` … `COMMIT;`. Prisma does **not** run a migration
+   in a transaction, so a failure part-way would leave tables without their RLS policies.
+   Keep migration files **ASCII-only** (some servers are not UTF-8).
+6. Migrations are **never edited after merge** — fix forward with a new migration.
+7. Production applies migrations with `pnpm db:migrate:deploy` only (never `migrate dev`/`db push`).
+8. Destructive changes (drop/rename column) use expand → migrate → contract across releases.
+9. Data backfills run as a role with an explicit policy; the owner role is subject to forced RLS too.
 
 CI fails if `migration.sql` and `schema.prisma` drift apart.
 

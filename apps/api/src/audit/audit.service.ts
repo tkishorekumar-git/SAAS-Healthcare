@@ -11,7 +11,11 @@ export type AuditAction =
   | 'AUTH_STAFF_LOGIN'
   | 'AUTH_REFRESH_REUSE_DETECTED'
   | 'AUTH_LOGOUT'
-  | 'AUTH_LOGOUT_ALL';
+  | 'AUTH_LOGOUT_ALL'
+  | 'SUPPORT_ACCESS_APPROVED'
+  | 'SUPPORT_ACCESS_REJECTED'
+  | 'SUPPORT_ACCESS_REVOKED'
+  | 'SUPPORT_ACCESS_USED';
 
 export interface AuditEntry {
   action: AuditAction;

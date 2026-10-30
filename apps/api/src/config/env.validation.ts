@@ -30,6 +30,12 @@ export const envSchema = z.object({
     .string()
     .regex(/^postgres(ql)?:\/\//, 'must be a postgresql:// connection string'),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
+  /** Super Admin endpoints connect as kenisha_platform (no access to hospital data). */
+  PLATFORM_DATABASE_URL: z
+    .string()
+    .regex(/^postgres(ql)?:\/\//, 'must be a postgresql:// connection string'),
+  /** Base64-encoded 32-byte key that encrypts Super Admin authenticator secrets. */
+  PLATFORM_TOTP_KEY: z.string().min(40, 'must be a base64-encoded 32-byte key'),
   REDIS_URL: z
     .string()
     .regex(/^rediss?:\/\//, 'must be a redis:// or rediss:// URL')

@@ -54,8 +54,10 @@ export function createPrismaClient(
     {
       connectionString,
       max: options.maxConnections ?? 10,
-      // Raw SQL resolves unqualified names in the application schema only.
-      options: `-c search_path=${schema}`,
+      // Raw SQL resolves unqualified names in the application schema only. TimeZone=UTC is
+      // required: the pg adapter exchanges timestamps without an offset, so any other
+      // session time zone silently shifts every stored timestamp.
+      options: `-c search_path=${schema} -c TimeZone=UTC`,
     },
     { schema },
   );

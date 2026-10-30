@@ -13,6 +13,7 @@ export const PERMISSIONS = [
   'staff:read',
   'staff:manage',
   'audit:read',
+  'support_access:manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -32,6 +33,17 @@ export const ROLE_PERMISSIONS: Readonly<Record<UserRole, readonly Permission[]>>
   PATIENT: BASE,
   PARENT_GUARDIAN: BASE,
 };
+
+/**
+ * What a Super Admin may do inside a hospital during approved break-glass access
+ * (ADR-0003 section 8): read-only, administrative data only.
+ */
+export const SUPPORT_ACCESS_PERMISSIONS: readonly Permission[] = [
+  'tenant:read',
+  'branch:read',
+  'staff:read',
+  'audit:read',
+];
 
 /** Roles that always see every branch and always need the SMS second factor. */
 export const HOSPITAL_ADMIN_ROLES: readonly UserRole[] = ['HOSPITAL_ADMIN', 'HOSPITAL_MANAGEMENT'];

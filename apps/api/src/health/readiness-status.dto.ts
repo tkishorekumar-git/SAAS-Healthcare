@@ -6,6 +6,9 @@ const DEPENDENCY_STATES: DependencyState[] = ['up', 'down', 'misconfigured'];
 class ReadinessChecksDto {
   @ApiProperty({ enum: DEPENDENCY_STATES, example: 'up' })
   database!: DependencyState;
+
+  @ApiProperty({ enum: DEPENDENCY_STATES, example: 'up' })
+  platformDatabase!: DependencyState;
 }
 
 /** Swagger representation of the shared ReadinessStatus contract. */

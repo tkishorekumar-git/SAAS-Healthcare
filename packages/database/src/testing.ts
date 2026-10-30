@@ -61,7 +61,11 @@ export async function createTestDatabase(
   const admin = new Client({ connectionString: serverUrl });
   await admin.connect();
   try {
-    await admin.query(`CREATE DATABASE ${admin.escapeIdentifier(name)}`);
+    // UTF-8 like the Docker/CI/production images, whatever the local server default is.
+    await admin.query(
+      `CREATE DATABASE ${admin.escapeIdentifier(name)} ENCODING 'UTF8' TEMPLATE template0 ` +
+        `LC_COLLATE 'C' LC_CTYPE 'C'`,
+    );
   } finally {
     await admin.end();
   }

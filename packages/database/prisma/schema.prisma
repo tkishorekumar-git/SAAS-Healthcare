@@ -61,10 +61,11 @@ model Tenant {
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  branches      Branch[]
-  subscriptions TenantSubscription[]
-  users         User[]
-  auditEvents   AuditEvent[]
+  branches              Branch[]
+  subscriptions         TenantSubscription[]
+  users                 User[]
+  auditEvents           AuditEvent[]
+  supportAccessRequests SupportAccessRequest[]
 
   @@map("tenants")
 }
@@ -206,6 +207,7 @@ model User {
   passwordCredential PasswordCredential?
   otpChallenges      OtpChallenge[]
   sessions           Session[]
+  supportDecisions   SupportAccessRequest[]
 
   @@unique([tenantId, accountKind, phoneE164])
   @@unique([tenantId, email])
@@ -327,4 +329,110 @@ model AuditEvent {
 
   @@index([tenantId, createdAt])
   @@map("audit_events")
+}
+
+// ---------------------------------------------------------------------------
+// Platform (Super Admin) identity and break-glass support access (ADR-0003 §4, §8).
+// Platform tables are reachable only by kenisha_platform. Support access requests are
+// created by the platform but can only be approved by the hospital (kenisha_app).
+// ---------------------------------------------------------------------------
+
+enum PlatformUserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum SupportAccessStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+/// Kenisha platform staff (Super Admin). Never a row in any hospital's `users` table.
+model PlatformUser {
+  id                  String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// Lower-case.
+  email               String             @unique @db.VarChar(254)
+  displayName         String             @map("display_name") @db.VarChar(200)
+  /// Argon2id PHC string.
+  passwordHash        String             @map("password_hash") @db.VarChar(255)
+  /// TOTP secret, AES-256-GCM encrypted with PLATFORM_TOTP_KEY (never stored in plain text).
+  totpSecretEncrypted String             @map("totp_secret_encrypted") @db.VarChar(255)
+  /// Last accepted 30-second TOTP step; a code can never be used twice.
+  totpLastUsedStep    BigInt?            @map("totp_last_used_step")
+  failedAttempts      Int                @default(0) @map("failed_attempts")
+  lockedUntil         DateTime?          @map("locked_until") @db.Timestamptz(3)
+  status              PlatformUserStatus @default(ACTIVE)
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sessions        PlatformSession[]
+  supportRequests SupportAccessRequest[]
+
+  @@map("platform_users")
+}
+
+model PlatformSession {
+  id                String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  platformUserId    String    @map("platform_user_id") @db.Uuid
+  refreshTokenHash  String    @map("refresh_token_hash") @db.Char(64)
+  refreshGeneration Int       @default(0) @map("refresh_generation")
+  lastRefreshedAt   DateTime  @default(now()) @map("last_refreshed_at") @db.Timestamptz(3)
+  idleTimeoutSecs   Int       @map("idle_timeout_secs")
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokeReason      String?   @map("revoke_reason") @db.VarChar(50)
+  ip                String?   @db.VarChar(45)
+  userAgent         String?   @map("user_agent") @db.VarChar(300)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  platformUser PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Restrict)
+
+  @@index([platformUserId])
+  @@map("platform_sessions")
+}
+
+/// Append-only audit of Super Admin actions. Hospitals see break-glass activity in their
+/// own audit_events; this table records the platform side.
+model PlatformAuditEvent {
+  id                  String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  actorPlatformUserId String?      @map("actor_platform_user_id") @db.Uuid
+  tenantId            String?      @map("tenant_id") @db.Uuid
+  action              String       @db.VarChar(64)
+  outcome             AuditOutcome
+  targetType          String?      @map("target_type") @db.VarChar(50)
+  targetId            String?      @map("target_id") @db.Uuid
+  ip                  String?      @db.VarChar(45)
+  userAgent           String?      @map("user_agent") @db.VarChar(300)
+  metadata            Json?
+  createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([createdAt])
+  @@map("platform_audit_events")
+}
+
+/// Break-glass request: filed by a Super Admin, decided by the hospital (ADR-0003 §8).
+model SupportAccessRequest {
+  id               String              @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId         String              @map("tenant_id") @db.Uuid
+  requestedById    String              @map("requested_by_id") @db.Uuid
+  /// Snapshot so the hospital can see who asked without reading platform tables.
+  requesterName    String              @map("requester_name") @db.VarChar(200)
+  reason           String              @db.VarChar(1000)
+  requestedMinutes Int                 @map("requested_minutes")
+  status           SupportAccessStatus @default(REQUESTED)
+  decidedByUserId  String?             @map("decided_by_user_id") @db.Uuid
+  decidedAt        DateTime?           @map("decided_at") @db.Timestamptz(3)
+  approvedUntil    DateTime?           @map("approved_until") @db.Timestamptz(3)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  requestedBy PlatformUser @relation(fields: [requestedById], references: [id], onDelete: Restrict)
+  decidedBy   User?        @relation(fields: [tenantId, decidedByUserId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, createdAt])
+  @@index([requestedById])
+  @@map("support_access_requests")
 }

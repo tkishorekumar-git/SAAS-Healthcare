@@ -6,8 +6,8 @@ Each milestone ends with a review and explicit approval before the next one star
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
 | 1   | **Monorepo foundation** — apps, shared packages, tooling, Docker dev env, CI, docs                                                                                 | ✅ Complete                             |
 | 2   | **Database foundation** — Prisma, tenancy tables (tenants, branches, subscriptions), RLS, migrations, synthetic seed, readiness check                              | ✅ Complete                             |
-| 3a  | **Identity & access (hospital users)** — hospital-first login, patient SMS-code login, staff password + SMS factor, sessions, permissions, branch scope, audit log | ✅ Complete — awaiting approval         |
-| 3b  | **Identity & access (platform)** — Super Admin login with authenticator app, break-glass support access                                                            | Next                                    |
+| 3a  | **Identity & access (hospital users)** — hospital-first login, patient SMS-code login, staff password + SMS factor, sessions, permissions, branch scope, audit log | ✅ Complete                             |
+| 3b  | **Identity & access (platform)** — Super Admin login with authenticator app, break-glass support access                                                            | ✅ Complete — awaiting approval         |
 | 4   | **Tenant administration** — Super Admin console, hospital onboarding, branches, staff, subscriptions                                                               | Planned                                 |
 | 5   | **Security review gate** — threat model, pen-test checklist, logging/PHI review                                                                                    | Planned (required before clinical work) |
 | 6   | **Patient registry** — patients, guardians, consent, shared clinical foundations                                                                                   | Planned                                 |
@@ -39,3 +39,16 @@ Each milestone ends with a review and explicit approval before the next one star
 - Deny-by-default guard, role → permission map, branch scope (ADR-0002 D3), audit log API.
 - 18 new database isolation tests, 19 API end-to-end tests on PostgreSQL, unit tests for
   JWT/codes/tokens/passwords; mutation-checked.
+
+## Milestone 3b deliverables
+
+- Platform tables (Super Admin users, sessions, audit) and `support_access_requests`, with
+  forced RLS, database-enforced break-glass transitions and a maximum approval window.
+- Super Admin login: password + authenticator app (TOTP, RFC 6238), encrypted secrets,
+  replay protection, shared lockout; operator script to create accounts.
+- Break-glass: request (platform) → approve/reject/revoke (Hospital Admin) → short-lived,
+  read-only, grant-checked token; every use in the hospital's audit log.
+- Readiness checks both database connections and that each logs in as the right role.
+- Fixed: timestamps shifted by the database server's time zone (connections now force UTC);
+  migrations are now atomic.
+- 11 new database tests, 14 new API end-to-end tests, RFC test vectors; mutation-checked.

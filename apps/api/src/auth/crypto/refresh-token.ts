@@ -40,6 +40,27 @@ export function parseRefreshToken(value: string): ParsedRefreshToken | null {
   };
 }
 
+/** Platform (Super Admin) refresh token: `pt1.<sessionId>.<generation>.<secret>`. */
+export interface ParsedPlatformRefreshToken {
+  sessionId: string;
+  generation: number;
+  secret: string;
+}
+
+const PLATFORM_FORMAT = new RegExp(`^pt1\\.(${UUID})\\.(\\d{1,9})\\.([A-Za-z0-9_-]{43})$`);
+
+export function formatPlatformRefreshToken(token: ParsedPlatformRefreshToken): string {
+  return `pt1.${token.sessionId}.${token.generation}.${token.secret}`;
+}
+
+export function parsePlatformRefreshToken(value: string): ParsedPlatformRefreshToken | null {
+  const match = PLATFORM_FORMAT.exec(value);
+  if (!match) {
+    return null;
+  }
+  return { sessionId: match[1]!, generation: Number(match[2]), secret: match[3]! };
+}
+
 export function refreshSecretMatches(secret: string, storedHash: string): boolean {
   const candidate = Buffer.from(hashRefreshSecret(secret), 'hex');
   const stored = Buffer.from(storedHash, 'hex');

@@ -56,6 +56,23 @@ the pre-clinical checklist must be signed off before any clinical module is buil
 common-password list is short (breached-password service planned); SMS as a staff factor
 carries SIM-swap risk (ADR-0003 §3).
 
+## Already in place (Milestone 3b)
+
+- Super Admin: password + authenticator app (TOTP); secrets encrypted at rest (AES-256-GCM);
+  each code accepted once; shared lockout; accounts created only by an operator script.
+- Platform and hospital tokens are mutually unusable (separate audiences, separate guards,
+  separate database roles).
+- Break-glass is enforced in PostgreSQL: the platform cannot approve itself, approvals cannot
+  exceed the requested duration, revocation is final and immediate.
+- Break-glass access is read-only, re-checked on every request, and every request is logged
+  in the hospital's own audit log.
+- Database connections force `TimeZone=UTC` (a non-UTC server previously shifted stored
+  timestamps); hand-written migrations run in a single transaction.
+
+**Known limitations (3b):** `PLATFORM_TOTP_KEY` has no rotation procedure yet (the `v1.`
+prefix allows adding one); no self-service authenticator reset (operator re-creates the
+account); no new-device login alerts yet (carried over from 3a).
+
 ## Pre-clinical security review checklist (Milestone 5 gate)
 
 - [ ] Threat model (STRIDE) for API, web, mobile, infrastructure

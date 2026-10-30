@@ -27,34 +27,36 @@ Every variable the platform reads. Real values are **never** committed — only 
 The API refuses to start if any value is invalid. Error messages name the variable but
 never print its value.
 
-| Variable            | Required | Default                  | Description                                                                                                             |
-| ------------------- | -------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`          | no       | `development`            | `development`, `test` or `production`                                                                                   |
-| `API_PORT`          | no       | `4000`                   | HTTP port                                                                                                               |
-| `API_GLOBAL_PREFIX` | no       | `api`                    | Route prefix → `/api/v1/...`                                                                                            |
-| `CORS_ORIGINS`      | no       | `http://localhost:3000`  | Comma-separated browser origins allowed to call the API                                                                 |
-| `SWAGGER_ENABLED`   | no       | `true` unless production | Serve Swagger UI at `/{prefix}/docs`                                                                                    |
-| `THROTTLE_TTL_MS`   | no       | `60000`                  | Rate-limit window in ms                                                                                                 |
-| `THROTTLE_LIMIT`    | no       | `120`                    | Requests allowed per window per client                                                                                  |
-| `DATABASE_URL`      | **yes**  | —                        | `postgresql://…?schema=kenisha` logging in as **`kenisha_app`**. Readiness fails (503) for any role that can bypass RLS |
-| `DATABASE_POOL_MAX` | no       | `10`                     | Maximum pooled database connections                                                                                     |
-| `REDIS_URL`         | no       | —                        | `redis://` or `rediss://` URL (not used yet)                                                                            |
+| Variable                | Required | Default                  | Description                                                                                                                           |
+| ----------------------- | -------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`              | no       | `development`            | `development`, `test` or `production`                                                                                                 |
+| `API_PORT`              | no       | `4000`                   | HTTP port                                                                                                                             |
+| `API_GLOBAL_PREFIX`     | no       | `api`                    | Route prefix → `/api/v1/...`                                                                                                          |
+| `CORS_ORIGINS`          | no       | `http://localhost:3000`  | Comma-separated browser origins allowed to call the API                                                                               |
+| `SWAGGER_ENABLED`       | no       | `true` unless production | Serve Swagger UI at `/{prefix}/docs`                                                                                                  |
+| `THROTTLE_TTL_MS`       | no       | `60000`                  | Rate-limit window in ms                                                                                                               |
+| `THROTTLE_LIMIT`        | no       | `120`                    | Requests allowed per window per client                                                                                                |
+| `DATABASE_URL`          | **yes**  | —                        | `postgresql://…?schema=kenisha` logging in as **`kenisha_app`**. Readiness fails (503) for any role that can bypass RLS               |
+| `PLATFORM_DATABASE_URL` | **yes**  | —                        | `postgresql://…?schema=kenisha` logging in as **`kenisha_platform`** (Super Admin endpoints). Readiness fails if it is any other role |
+| `DATABASE_POOL_MAX`     | no       | `10`                     | Maximum pooled database connections                                                                                                   |
+| `REDIS_URL`             | no       | —                        | `redis://` or `rediss://` URL (not used yet)                                                                                          |
 
 ### API authentication (ADR-0003)
 
-Generate the three secrets with `pnpm --filter @kenisha/api auth:secrets`. All are
+Generate the four secrets with `pnpm --filter @kenisha/api auth:secrets`. All are
 **secrets**: never commit them, and use different values per environment.
 
-| Variable                   | Required | Default       | Description                                                                        |
-| -------------------------- | -------- | ------------- | ---------------------------------------------------------------------------------- |
-| `JWT_PRIVATE_KEY`          | **yes**  | —             | Base64-encoded PEM (PKCS#8) Ed25519 key that signs access tokens. **Secret**       |
-| `JWT_PUBLIC_KEY`           | **yes**  | —             | Base64-encoded PEM (SPKI) Ed25519 key that verifies them                           |
-| `OTP_HMAC_SECRET`          | **yes**  | —             | ≥ 32 chars; one-time codes are stored only as HMACs keyed with it. **Secret**      |
-| `SMS_PROVIDER`             | **yes**  | —             | `development` only for now (codes go to the API log; refused outside dev/test)     |
-| `JWT_ISSUER`               | no       | `kenisha-api` | `iss` claim of access tokens                                                       |
-| `ACCESS_TOKEN_TTL_SECONDS` | no       | `900`         | Access-token lifetime (60–3600)                                                    |
-| `AUTH_COOKIE_SECURE`       | no       | `true`        | `Secure` flag on the web refresh cookie (browsers accept it on `http://localhost`) |
-| `AUTH_THROTTLE_LIMIT`      | no       | `10`          | Login requests per minute per IP (in-process until Redis is introduced)            |
+| Variable                   | Required | Default       | Description                                                                                                                                        |
+| -------------------------- | -------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JWT_PRIVATE_KEY`          | **yes**  | —             | Base64-encoded PEM (PKCS#8) Ed25519 key that signs access tokens. **Secret**                                                                       |
+| `JWT_PUBLIC_KEY`           | **yes**  | —             | Base64-encoded PEM (SPKI) Ed25519 key that verifies them                                                                                           |
+| `PLATFORM_TOTP_KEY`        | **yes**  | —             | Base64 32-byte key that encrypts Super Admin authenticator secrets (AES-256-GCM). **Secret.** Changing it invalidates every enrolled authenticator |
+| `OTP_HMAC_SECRET`          | **yes**  | —             | ≥ 32 chars; one-time codes are stored only as HMACs keyed with it. **Secret**                                                                      |
+| `SMS_PROVIDER`             | **yes**  | —             | `development` only for now (codes go to the API log; refused outside dev/test)                                                                     |
+| `JWT_ISSUER`               | no       | `kenisha-api` | `iss` claim of access tokens                                                                                                                       |
+| `ACCESS_TOKEN_TTL_SECONDS` | no       | `900`         | Access-token lifetime (60–3600)                                                                                                                    |
+| `AUTH_COOKIE_SECURE`       | no       | `true`        | `Secure` flag on the web refresh cookie (browsers accept it on `http://localhost`)                                                                 |
+| `AUTH_THROTTLE_LIMIT`      | no       | `10`          | Login requests per minute per IP (in-process until Redis is introduced)                                                                            |
 
 Rotating the JWT keys signs every user out within 15 minutes. Rotating `OTP_HMAC_SECRET`
 invalidates codes that are in flight (valid for 5 minutes).

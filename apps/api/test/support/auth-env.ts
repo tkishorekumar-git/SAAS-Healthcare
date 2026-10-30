@@ -12,3 +12,4 @@ process.env.SMS_PROVIDER = 'development';
 process.env.AUTH_COOKIE_SECURE = 'false';
 // Tests log in many times from one address; the real per-IP limit is unit-tested separately.
 process.env.AUTH_THROTTLE_LIMIT = '1000';
+process.env.PLATFORM_TOTP_KEY = randomBytes(32).toString('base64');

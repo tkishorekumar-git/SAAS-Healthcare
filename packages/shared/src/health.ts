@@ -18,7 +18,10 @@ export type DependencyState = 'up' | 'down' | 'misconfigured';
 export interface ReadinessStatus {
   status: 'ok' | 'error';
   checks: {
+    /** kenisha_app connection (hospital data). */
     database: DependencyState;
+    /** kenisha_platform connection (Super Admin). */
+    platformDatabase: DependencyState;
   };
   timestamp: string;
 }

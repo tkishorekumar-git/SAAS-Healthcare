@@ -37,8 +37,12 @@ export class BranchesController {
         where: { id: auth.tenantId },
         select: { branchScopeMode: true },
       });
-      const isAdmin = auth.roles.some((role) => HOSPITAL_ADMIN_ROLES.includes(role));
-      const isPersonal = auth.roles.every((role) => PERSONAL_ROLES.has(role));
+      // Break-glass support sees what a Hospital Admin sees (read-only by permission).
+      const isAdmin =
+        auth.supportAccess !== undefined ||
+        auth.roles.some((role) => HOSPITAL_ADMIN_ROLES.includes(role));
+      const isPersonal =
+        auth.roles.length > 0 && auth.roles.every((role) => PERSONAL_ROLES.has(role));
       const restricted = tenant.branchScopeMode === 'ASSIGNED_BRANCHES' && !isAdmin && !isPersonal;
 
       return tx.branch.findMany({

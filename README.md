@@ -109,6 +109,19 @@ appear in the API log as `[DEV ONLY] code for ******0002: 123456`.
 | Patient & guardian       | `POST /api/v1/auth/otp/request` | `+919800000101`                                       |
 
 Staff then complete `POST /api/v1/auth/staff/mfa/verify` with the code from the log.
+
+### Super Admin (platform) account
+
+There is no sign-up page for Super Admins. An operator creates the account and enrols an
+authenticator app (Google/Microsoft Authenticator, Authy) from the printed secret:
+
+```bash
+NEW_PLATFORM_ADMIN_PASSWORD='<a long passphrase>' pnpm --filter @kenisha/api platform:create-admin --email you@example.test --name "Your Name"
+```
+
+Log in with `POST /api/v1/platform/auth/login`, then `POST /api/v1/platform/auth/totp/verify`.
+Break-glass: request access with `POST /api/v1/platform/support-access`; the hospital's
+admin approves it at `POST /api/v1/support-access-requests/{id}/approve`.
 The full flow is documented in Swagger under **auth**.
 
 ## Running locally

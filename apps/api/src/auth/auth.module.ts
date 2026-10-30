@@ -1,21 +1,22 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuditModule } from '../audit/audit.module';
+import { PlatformModule } from '../platform/platform.module';
+import { SupportAccessModule } from '../support-access/support-access.module';
 import type { Env } from '../config/env.validation';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthGuard, PermissionsGuard } from './guards';
 import { SessionService } from './session.service';
 import { DevelopmentSmsProvider, SMS_PROVIDER } from './sms/sms.provider';
-import { TokenService } from './token.service';
+import { TokensModule } from './tokens.module';
 
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, TokensModule, PlatformModule, SupportAccessModule],
   controllers: [AuthController],
   providers: [
     AuthService,
     SessionService,
-    TokenService,
     AuthGuard,
     PermissionsGuard,
     {

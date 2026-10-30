@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { PERMISSIONS, ROLE_PERMISSIONS, hasPermissions, permissionsForRoles } from './permissions';
+import {
+  PERMISSIONS,
+  ROLE_PERMISSIONS,
+  SUPPORT_ACCESS_PERMISSIONS,
+  hasPermissions,
+  permissionsForRoles,
+} from './permissions';
 import { USER_ROLES } from './roles';
 
 describe('permissions', () => {
@@ -24,6 +30,17 @@ describe('permissions', () => {
       expect(hasPermissions([role], ['staff:manage'])).toBe(false);
       expect(hasPermissions([role], ['audit:read'])).toBe(false);
     }
+  });
+
+  it('keeps break-glass support access read-only', () => {
+    for (const permission of SUPPORT_ACCESS_PERMISSIONS) {
+      expect(permission).toMatch(/:read$/);
+    }
+  });
+
+  it('lets only Hospital Admin decide support access requests', () => {
+    const allowed = USER_ROLES.filter((role) => hasPermissions([role], ['support_access:manage']));
+    expect(allowed).toEqual(['HOSPITAL_ADMIN']);
   });
 
   it('combines permissions across multiple roles', () => {

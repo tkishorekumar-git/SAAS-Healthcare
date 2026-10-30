@@ -5,6 +5,9 @@ const required = {
   JWT_PRIVATE_KEY: 'x'.repeat(64),
   JWT_PUBLIC_KEY: 'x'.repeat(64),
   OTP_HMAC_SECRET: 'unit-test-otp-secret-0123456789abcdef',
+  PLATFORM_DATABASE_URL:
+    'postgresql://kenisha_platform:unit-test-password@localhost:5432/test?schema=kenisha',
+  PLATFORM_TOTP_KEY: Buffer.alloc(32, 7).toString('base64'),
   SMS_PROVIDER: 'development',
 };
 
@@ -19,13 +22,18 @@ describe('validateEnv', () => {
     expect(env.DATABASE_POOL_MAX).toBe(10);
   });
 
-  it.each(['DATABASE_URL', 'JWT_PRIVATE_KEY', 'JWT_PUBLIC_KEY', 'OTP_HMAC_SECRET', 'SMS_PROVIDER'])(
-    'requires %s',
-    (name) => {
-      const { [name as keyof typeof required]: _omitted, ...rest } = required;
-      expect(() => validateEnv(rest)).toThrow(new RegExp(name));
-    },
-  );
+  it.each([
+    'DATABASE_URL',
+    'PLATFORM_DATABASE_URL',
+    'PLATFORM_TOTP_KEY',
+    'JWT_PRIVATE_KEY',
+    'JWT_PUBLIC_KEY',
+    'OTP_HMAC_SECRET',
+    'SMS_PROVIDER',
+  ])('requires %s', (name) => {
+    const { [name as keyof typeof required]: _omitted, ...rest } = required;
+    expect(() => validateEnv(rest)).toThrow(new RegExp(name));
+  });
 
   it('defaults to secure auth cookies and a 15-minute access token', () => {
     const env = validateEnv(required);

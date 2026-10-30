@@ -80,6 +80,8 @@ Flutter: `cd apps/mobile && flutter analyze && flutter test`.
 - **Every endpoint is authenticated by default.** Mark genuinely public endpoints with
   `@Public()`; protect the rest with `@RequirePermissions(...)` and read the caller with
   `@CurrentAuth()`. Tenant ID always comes from `CurrentAuth`, never from the request.
+- Super Admin endpoints live under `/platform`, are marked `@PlatformRoute()` and use only
+  `PlatformDatabase` (kenisha_platform) — never `TenantDatabase`.
 - Feature code reaches the database only through `TenantDatabase.run(tenantId, tx => …)`.
 - Security-relevant actions write an audit event (`AuditService.record`) in the same
   transaction — IDs and reason codes only, never codes, tokens, passwords or PHI.

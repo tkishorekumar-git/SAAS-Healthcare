@@ -78,6 +78,8 @@ export async function bootstrapDatabase(
 
   await admin.query(`REVOKE ALL ON DATABASE ${database} FROM PUBLIC`);
   await admin.query(`GRANT CONNECT ON DATABASE ${database} TO ${migrator}, ${app}, ${platform}`);
+  // Defence in depth for clients other than createPrismaClient (CLI, psql, reports).
+  await admin.query(`ALTER DATABASE ${database} SET timezone TO 'UTC'`);
   // Prisma issues CREATE SCHEMA IF NOT EXISTS, which needs CREATE on the database.
   await admin.query(`GRANT CREATE ON DATABASE ${database} TO ${migrator}`);
   await admin.query('REVOKE CREATE ON SCHEMA public FROM PUBLIC');

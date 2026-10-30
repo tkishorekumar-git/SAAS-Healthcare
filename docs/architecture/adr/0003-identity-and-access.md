@@ -165,5 +165,28 @@ authenticator-app MFA (unless chosen for Super Admin), "remember this device", A
   is introduced. Per-phone OTP limits and per-account lockouts are stored in PostgreSQL.
 - **Breached-password check:** a built-in list of common passwords in 3a; an external
   breached-password service is a later enhancement.
+
+## Implementation notes (3b)
+
+- **Super Admin accounts** are created only by an operator script
+  (`pnpm --filter @kenisha/api platform:create-admin`); there is no sign-up endpoint.
+- **TOTP**: RFC 6238 (SHA-1, 30 s, 6 digits, ±1 step drift), verified against the RFC test
+  vectors. Secrets are AES-256-GCM encrypted with `PLATFORM_TOTP_KEY`; the last accepted
+  step is stored so a code can never be replayed. Password and code failures share one
+  lockout counter.
+- **Token audiences** separate every caller: `web`/`mobile` (hospital users), `support`
+  (break-glass), `platform` (Super Admin), `platform-mfa` (5-minute step between password
+  and code). Each verifier accepts only its own audiences.
+- **Break-glass rules enforced by PostgreSQL**: the platform role can insert requests only
+  in `REQUESTED` state and has no UPDATE privilege; only the hospital can decide; a trigger
+  allows only REQUESTED→APPROVED/REJECTED and APPROVED→REVOKED; approval cannot exceed the
+  requested duration; revoking caps the end time at `now()`.
+- **Break-glass tokens** carry no roles, are limited to read-only permissions
+  (`SUPPORT_ACCESS_PERMISSIONS`), work only on permission-guarded endpoints, never outlive
+  the grant, and are re-checked against the grant on every request. Each request is
+  written to the hospital's own audit log (`SUPPORT_ACCESS_USED`, route template only).
+- **Platform sessions** rotate like hospital sessions, with an 8-hour absolute and 15-minute
+  idle limit; the refresh token is only ever in an HttpOnly cookie.
+
 - **JWTs** are signed and verified with Node's built-in Ed25519 support (no JWT library);
   the verifier accepts only `alg: EdDSA` and checks issuer, audience and expiry.
