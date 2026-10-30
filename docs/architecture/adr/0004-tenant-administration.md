@@ -128,6 +128,19 @@ Patient-facing screens and the patient registry are **not** part of Milestone 4
   reached through the API (admins cannot change themselves), so it is defence in depth and
   not covered by an end-to-end test.
 
+## Implementation notes (4b)
+
+- Consoles are client-rendered Next.js pages; the browser calls the API directly with an
+  allow-listed origin and `credentials: 'include'`. Nothing sensitive is kept in browser
+  storage — only the last hospital code, as a convenience.
+- `SessionManager` keeps the access token in memory, refreshes 30 s before expiry, shares one
+  in-flight refresh per tab and serialises refreshes across tabs with the Web Locks API
+  (browsers without it fall back to per-tab de-duplication).
+- Response types in `apps/web/src/lib/api/types.ts` mirror the Swagger DTOs; generating them
+  from OpenAPI is a later improvement.
+- Using an approved break-glass grant from the web console is not built yet (the API supports
+  it); the Super Admin console files and lists requests.
+
 ## Out of scope (later milestones)
 
 Payments and invoices; patient registration and records (Milestone 6); new-device login

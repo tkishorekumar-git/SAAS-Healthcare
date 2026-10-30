@@ -8,8 +8,8 @@ Each milestone ends with a review and explicit approval before the next one star
 | 2   | **Database foundation** — Prisma, tenancy tables (tenants, branches, subscriptions), RLS, migrations, synthetic seed, readiness check                              | ✅ Complete                             |
 | 3a  | **Identity & access (hospital users)** — hospital-first login, patient SMS-code login, staff password + SMS factor, sessions, permissions, branch scope, audit log | ✅ Complete                             |
 | 3b  | **Identity & access (platform)** — Super Admin login with authenticator app, break-glass support access                                                            | ✅ Complete                             |
-| 4a  | **Tenant administration (API)** — onboarding, SMS staff invitations, staff/branch management, settings, plan limits, suspension                                    | ✅ Complete — awaiting approval         |
-| 4b  | **Tenant administration (web)** — first admin web screens: sign-in, invitation acceptance, Hospital Admin and Super Admin consoles                                 | Next                                    |
+| 4a  | **Tenant administration (API)** — onboarding, SMS staff invitations, staff/branch management, settings, plan limits, suspension                                    | ✅ Complete                             |
+| 4b  | **Tenant administration (web)** — first admin web screens: sign-in, invitation acceptance, Hospital Admin and Super Admin consoles                                 | ✅ Complete — awaiting approval         |
 | 5   | **Security review gate** — threat model, pen-test checklist, logging/PHI review                                                                                    | Planned (required before clinical work) |
 | 6   | **Patient registry** — patients, guardians, consent, shared clinical foundations                                                                                   | Planned                                 |
 | 7+  | Clinical modules — Hospital Management, Chronic Care, Maternal, Pediatric                                                                                          | Planned                                 |
@@ -67,3 +67,19 @@ Each milestone ends with a review and explicit approval before the next one star
 - Plan limits (branches, staff incl. pending invitations, modules) with row locking;
   `/auth/me` returns enabled modules.
 - 17 new database tests, 22 new API end-to-end tests; mutation-checked.
+
+## Milestone 4b deliverables
+
+- Web sign-in: staff (password + SMS code), Super Admin (password + authenticator code),
+  invitation acceptance (set password).
+- Hospital Admin console: overview (plan, usage, modules), staff (invite, edit roles/branches,
+  disable/enable, unlock), invitations (resend/cancel), branches, settings, support-access
+  approvals, audit log. Navigation follows the user's permissions.
+- Super Admin console: hospitals with usage counts, onboarding, hospital detail (plan change,
+  suspend/reactivate, resend admin invitation), support-access requests.
+- Session handling: access token in memory only; refresh via the HttpOnly cookie; one refresh
+  at a time per tab and across tabs (Web Locks), so rotation never triggers theft detection.
+- Shared UI components: input, select, textarea, label/field, table, alert.
+- Unit/component tests (session manager, API client, sign-in and invitation forms) and a live
+  browser walkthrough of onboarding → invitation → first login → branches → staff invite →
+  audit log → sign-out, including phone width.

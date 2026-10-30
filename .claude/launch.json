@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": ["pnpm", "--filter", "@kenisha/api", "start"],
+      "port": 4000
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": ["pnpm", "--filter", "@kenisha/web", "dev"],
+      "port": 3000
+    }
+  ]
+}

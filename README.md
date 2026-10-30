@@ -110,12 +110,22 @@ appear in the API log as `[DEV ONLY] code for ******0002: 123456`.
 
 Staff then complete `POST /api/v1/auth/staff/mfa/verify` with the code from the log.
 
+### Web consoles
+
+| URL                                    | Who                                                 |
+| -------------------------------------- | --------------------------------------------------- |
+| <http://localhost:3000/login>          | Hospital staff (Hospital Admin console at `/admin`) |
+| <http://localhost:3000/platform/login> | Kenisha Super Admin (console at `/platform`)        |
+| `/invite?hospital=…&token=…`           | Invitation links sent by SMS                        |
+
+In development, SMS codes and invitation links appear in the API log (`[DEV ONLY]`).
+`.claude/launch.json` defines `api` and `web` dev servers for Claude Code's preview pane.
+
 ### Onboarding a hospital (API)
 
 1. Super Admin: `POST /api/v1/platform/tenants` with hospital code, name, plan and the first
    admin's mobile. In development the invitation link appears in the API log.
-2. The admin opens the link (`/invite?hospital=…&token=…`) — until the web screens exist,
-   call `POST /api/v1/auth/invitations/accept` with the hospital code, token and a password.
+2. The admin opens the link (`/invite?hospital=…&token=…`) and chooses a password.
 3. The admin logs in and invites staff with `POST /api/v1/staff-invitations`.
 
 ### Super Admin (platform) account

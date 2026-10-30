@@ -83,6 +83,15 @@ account); no new-device login alerts yet (carried over from 3a).
 - Role changes, disabling a user and suspending a hospital end the affected sessions at once.
 - Every administrative change is written to the hospital or platform audit log.
 
+## Already in place (Milestone 4b)
+
+- Web consoles never store tokens in localStorage, sessionStorage or non-HttpOnly cookies;
+  the access token lives in memory and is lost on reload by design.
+- Refreshes are serialised (per tab and across tabs) so refresh-token rotation cannot be
+  mistaken for theft; sign-out revokes the session server-side and clears the cookie.
+- Passwords are cleared from page state after every sign-in attempt.
+- UI permission checks are cosmetic only; the API enforces every permission.
+
 ## Pre-clinical security review checklist (Milestone 5 gate)
 
 - [ ] Threat model (STRIDE) for API, web, mobile, infrastructure

@@ -73,6 +73,8 @@ Flutter: `cd apps/mobile && flutter analyze && flutter test`.
 - API modules follow Nest feature folders: `src/<feature>/{module,controller,service,dto}`.
 - Shared request/response contracts live in `packages/shared` and are implemented by
   Swagger DTO classes in the API.
+- Web consoles call the API through `staffSession` / `platformSession` (`apps/web/src/lib/auth`);
+  never store tokens in browser storage and never call `/auth/refresh` directly.
 - Add shadcn components into `packages/ui/src/components/` and import them as
   `@kenisha/ui/components/<name>`.
 - Roles are defined once in `packages/shared/src/roles.ts`; the role → permission map in
