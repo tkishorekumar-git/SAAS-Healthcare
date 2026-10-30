@@ -1,0 +1,7 @@
+{
+  "extends": "@kenisha/tsconfig/library.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "scripts", "test", "prisma.config.ts", "tsup.config.ts", "vitest.config.ts"]
+}

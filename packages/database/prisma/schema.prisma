@@ -1,0 +1,330 @@
+// Kenisha Healthcare data model.
+//
+// Tenant isolation (ADR-0002): every tenant-owned table has `tenant_id`, and PostgreSQL
+// Row-Level Security policies — written as SQL inside the migrations — restrict each
+// database role to the rows it may see. Prisma does not manage RLS or grants, so every
+// new table needs a hand-written policy block in its migration (see README.md).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TenantStatus {
+  ONBOARDING
+  ACTIVE
+  SUSPENDED
+}
+
+/// Where a tenant's data is hosted. Only India is deployed today (ADR-0002, D4).
+enum DataRegion {
+  IN
+}
+
+/// Whether staff see every branch of their hospital or only assigned ones (ADR-0002, D3).
+enum BranchScopeMode {
+  TENANT_WIDE
+  ASSIGNED_BRANCHES
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+/// Mirrors HEALTHCARE_MODULE_KEYS in @kenisha/shared.
+enum HealthcareModule {
+  HOSPITAL
+  CHRONIC_CARE
+  MATERNAL
+  PEDIATRIC
+}
+
+/// A hospital or clinic organisation. Platform-owned table: the app role may read and
+/// rename only its own row; the platform role manages all rows.
+model Tenant {
+  id              String          @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// URL-safe identifier used for the hospital subdomain / login code.
+  slug            String          @unique @db.VarChar(63)
+  name            String          @db.VarChar(200)
+  status          TenantStatus    @default(ONBOARDING)
+  dataRegion      DataRegion      @default(IN) @map("data_region")
+  branchScopeMode BranchScopeMode @default(TENANT_WIDE) @map("branch_scope_mode")
+  staffMfaMode    StaffMfaMode    @default(ALL_STAFF) @map("staff_mfa_mode")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  branches      Branch[]
+  subscriptions TenantSubscription[]
+  users         User[]
+  auditEvents   AuditEvent[]
+
+  @@map("tenants")
+}
+
+/// A physical location of a tenant (hospital campus, clinic, satellite centre).
+model Branch {
+  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  /// Short code unique within the tenant, e.g. "MAIN", "BLR-01".
+  code         String   @db.VarChar(32)
+  name         String   @db.VarChar(200)
+  addressLine1 String?  @map("address_line1") @db.VarChar(200)
+  addressLine2 String?  @map("address_line2") @db.VarChar(200)
+  city         String   @db.VarChar(100)
+  state        String   @db.VarChar(100)
+  postalCode   String?  @map("postal_code") @db.VarChar(20)
+  /// ISO 3166-1 alpha-2.
+  countryCode  String   @default("IN") @map("country_code") @db.Char(2)
+  phone        String?  @db.VarChar(20)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant           Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  staffAssignments StaffBranchAssignment[]
+
+  @@unique([tenantId, code])
+  /// Lets future child tables use a composite FK (tenant_id, branch_id) so a row can
+  /// never reference another tenant's branch.
+  @@unique([tenantId, id])
+  @@map("branches")
+}
+
+/// A sellable plan. Platform-owned; readable by every tenant.
+model SubscriptionPlan {
+  id              String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code            String             @unique @db.VarChar(50)
+  name            String             @db.VarChar(100)
+  includedModules HealthcareModule[] @map("included_modules")
+  maxBranches     Int                @map("max_branches")
+  maxStaffUsers   Int                @map("max_staff_users")
+  isActive        Boolean            @default(true) @map("is_active")
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  subscriptions TenantSubscription[]
+
+  @@map("subscription_plans")
+}
+
+/// A tenant's subscription to a plan. Managed by the platform; the tenant may read its own.
+model TenantSubscription {
+  id                 String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId           String             @map("tenant_id") @db.Uuid
+  planId             String             @map("plan_id") @db.Uuid
+  status             SubscriptionStatus
+  currentPeriodStart DateTime           @map("current_period_start") @db.Timestamptz(3)
+  currentPeriodEnd   DateTime           @map("current_period_end") @db.Timestamptz(3)
+  cancelledAt        DateTime?          @map("cancelled_at") @db.Timestamptz(3)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@index([planId])
+  @@map("tenant_subscriptions")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access (ADR-0003). All tenant-owned. Child tables reference users and
+// branches through composite (tenant_id, id) foreign keys, so a row can never point at
+// another tenant's user or branch.
+// ---------------------------------------------------------------------------
+
+/// Whether staff other than admins must pass an SMS second factor (ADR-0003, I5).
+enum StaffMfaMode {
+  ALL_STAFF
+  ADMINS_ONLY
+}
+
+/// STAFF accounts log in with password + SMS factor; PERSONAL accounts (patients and
+/// guardians) log in with an SMS code only.
+enum AccountKind {
+  STAFF
+  PERSONAL
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+/// Mirrors USER_ROLES in @kenisha/shared, minus SUPER_ADMIN (platform accounts are separate).
+enum TenantRole {
+  HOSPITAL_ADMIN
+  HOSPITAL_MANAGEMENT
+  DOCTOR
+  NURSE
+  RECEPTIONIST
+  LAB_TECHNICIAN
+  PHARMACIST
+  PATIENT
+  PARENT_GUARDIAN
+}
+
+enum OtpPurpose {
+  PERSONAL_LOGIN
+  STAFF_MFA
+}
+
+enum SessionClient {
+  WEB
+  MOBILE
+}
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+}
+
+model User {
+  id          String      @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  accountKind AccountKind @map("account_kind")
+  displayName String      @map("display_name") @db.VarChar(200)
+  /// E.164, e.g. +919876543210. Unique per hospital and account kind.
+  phoneE164   String      @map("phone_e164") @db.VarChar(16)
+  /// Lower-case. Staff only.
+  email       String?     @db.VarChar(254)
+  status      UserStatus  @default(ACTIVE)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  roles              UserRole[]
+  branchAssignments  StaffBranchAssignment[]
+  passwordCredential PasswordCredential?
+  otpChallenges      OtpChallenge[]
+  sessions           Session[]
+
+  @@unique([tenantId, accountKind, phoneE164])
+  @@unique([tenantId, email])
+  @@unique([tenantId, id])
+  @@map("users")
+}
+
+model UserRole {
+  id        String     @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId  String     @map("tenant_id") @db.Uuid
+  userId    String     @map("user_id") @db.Uuid
+  role      TenantRole
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([userId, role])
+  @@index([tenantId])
+  @@map("user_roles")
+}
+
+/// Branches a staff member may access when the hospital uses ASSIGNED_BRANCHES mode.
+model StaffBranchAssignment {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  branchId  String   @map("branch_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user   User   @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict)
+  branch Branch @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([userId, branchId])
+  @@index([tenantId])
+  @@map("staff_branch_assignments")
+}
+
+/// Kept apart from `users` so password hashes are never loaded with ordinary user reads.
+model PasswordCredential {
+  userId            String    @id @map("user_id") @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  /// Argon2id PHC string.
+  passwordHash      String    @map("password_hash") @db.VarChar(255)
+  failedAttempts    Int       @default(0) @map("failed_attempts")
+  lockedUntil       DateTime? @map("locked_until") @db.Timestamptz(3)
+  passwordChangedAt DateTime  @default(now()) @map("password_changed_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, userId])
+  @@map("password_credentials")
+}
+
+/// One-time SMS codes; only an HMAC of the code is stored. `userId` is NULL when the
+/// phone number is not registered, so responses never reveal whether an account exists.
+model OtpChallenge {
+  id          String     @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId    String     @map("tenant_id") @db.Uuid
+  userId      String?    @map("user_id") @db.Uuid
+  purpose     OtpPurpose
+  phoneE164   String     @map("phone_e164") @db.VarChar(16)
+  codeHmac    String     @map("code_hmac") @db.Char(64)
+  attempts    Int        @default(0)
+  maxAttempts Int        @default(5) @map("max_attempts")
+  expiresAt   DateTime   @map("expires_at") @db.Timestamptz(3)
+  consumedAt  DateTime?  @map("consumed_at") @db.Timestamptz(3)
+  requestIp   String?    @map("request_ip") @db.VarChar(45)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User? @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, phoneE164, createdAt])
+  @@map("otp_challenges")
+}
+
+/// A login session. Only the SHA-256 of the current refresh secret is stored.
+model Session {
+  id                String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId          String        @map("tenant_id") @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  client            SessionClient
+  refreshTokenHash  String        @map("refresh_token_hash") @db.Char(64)
+  /// Incremented on every refresh; presenting an older generation revokes the session.
+  refreshGeneration Int           @default(0) @map("refresh_generation")
+  lastRefreshedAt   DateTime      @default(now()) @map("last_refreshed_at") @db.Timestamptz(3)
+  /// Seconds of inactivity after which the session ends (staff only).
+  idleTimeoutSecs   Int?          @map("idle_timeout_secs")
+  expiresAt         DateTime      @map("expires_at") @db.Timestamptz(3)
+  absoluteExpiresAt DateTime      @map("absolute_expires_at") @db.Timestamptz(3)
+  revokedAt         DateTime?     @map("revoked_at") @db.Timestamptz(3)
+  revokeReason      String?       @map("revoke_reason") @db.VarChar(50)
+  ip                String?       @db.VarChar(45)
+  userAgent         String?       @map("user_agent") @db.VarChar(300)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, userId])
+  @@map("sessions")
+}
+
+/// Append-only security audit trail. Never holds codes, passwords, tokens or PHI.
+model AuditEvent {
+  id          String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId    String       @map("tenant_id") @db.Uuid
+  actorUserId String?      @map("actor_user_id") @db.Uuid
+  action      String       @db.VarChar(64)
+  outcome     AuditOutcome
+  targetType  String?      @map("target_type") @db.VarChar(50)
+  targetId    String?      @map("target_id") @db.Uuid
+  ip          String?      @db.VarChar(45)
+  userAgent   String?      @map("user_agent") @db.VarChar(300)
+  metadata    Json?
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, createdAt])
+  @@map("audit_events")
+}

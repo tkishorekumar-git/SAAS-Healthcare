@@ -1,0 +1,10 @@
+{
+  "name": "@kenisha/tsconfig",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Shared strict TypeScript configurations",
+  "files": [
+    "*.json"
+  ]
+}

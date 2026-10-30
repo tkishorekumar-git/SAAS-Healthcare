@@ -1,0 +1,56 @@
+{
+  "name": "@kenisha/database",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "PostgreSQL schema, migrations, RLS policies and tenant-aware Prisma client",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "prisma generate && tsup",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project unit",
+    "test:db": "vitest run --project integration",
+    "db:bootstrap": "tsx scripts/bootstrap-roles.ts",
+    "db:generate": "prisma generate",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@kenisha/shared": "workspace:*",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@kenisha/eslint-config": "workspace:*",
+    "@kenisha/tsconfig": "workspace:*",
+    "@node-rs/argon2": "^2.0.2",
+    "@types/node": "^22.18.6",
+    "@types/pg": "^8.15.5",
+    "dotenv": "^17.2.3",
+    "eslint": "^9.36.0",
+    "prisma": "^7.10.1",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

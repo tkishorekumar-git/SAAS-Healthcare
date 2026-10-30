@@ -1,0 +1,13 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-db-spec.ts$",
+  "globalSetup": "<rootDir>/db/global-setup.ts",
+  "globalTeardown": "<rootDir>/db/global-teardown.ts",
+  "setupFiles": ["<rootDir>/setup-env-db.ts"],
+  "testTimeout": 60000,
+  "transform": {
+    "^.+\\.ts$": ["ts-jest", { "diagnostics": { "ignoreCodes": [151002] } }]
+  }
+}

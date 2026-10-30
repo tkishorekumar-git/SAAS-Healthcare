@@ -1,0 +1,42 @@
+{
+  "name": "kenisha-healthcare",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Kenisha Healthcare — multi-tenant SaaS healthcare platform (monorepo)",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=22.12.0",
+    "pnpm": ">=9.15.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@kenisha/api --filter=@kenisha/web --filter=@kenisha/shared",
+    "dev:api": "turbo run dev --filter=@kenisha/api --filter=@kenisha/shared",
+    "dev:web": "turbo run dev --filter=@kenisha/web --filter=@kenisha/shared",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "test:db": "turbo run test:db",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e",
+    "db:bootstrap": "pnpm --filter @kenisha/database db:bootstrap",
+    "db:migrate:dev": "pnpm --filter @kenisha/database db:migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @kenisha/database db:migrate:deploy",
+    "db:migrate:status": "pnpm --filter @kenisha/database db:migrate:status",
+    "db:seed": "pnpm --filter @kenisha/database db:seed",
+    "db:studio": "pnpm --filter @kenisha/database db:studio",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "infra:logs": "docker compose logs -f",
+    "infra:ps": "docker compose ps",
+    "test:e2e:db": "turbo run test:e2e:db"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.2"
+  }
+}

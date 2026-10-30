@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-and-api:
+    name: Web, API & packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    # Throwaway PostgreSQL for this job only. These credentials exist solely inside the
+    # ephemeral CI container and are not secrets.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci_admin
+          POSTGRES_PASSWORD: ci-admin-password
+          POSTGRES_DB: kenisha_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_admin -d kenisha_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_ADMIN_URL: postgresql://ci_admin:ci-admin-password@localhost:5432/kenisha_ci
+      MIGRATION_DATABASE_URL: postgresql://kenisha_migrator:ci-migrator-password@localhost:5432/kenisha_ci?schema=kenisha
+      APP_DATABASE_URL: postgresql://kenisha_app:ci-app-password-1@localhost:5432/kenisha_ci?schema=kenisha
+      PLATFORM_DATABASE_URL: postgresql://kenisha_platform:ci-platform-password@localhost:5432/kenisha_ci?schema=kenisha
+      SEED_STAFF_PASSWORD: ci-seed-staff-password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm test:e2e
+      - run: pnpm build
+
+      - name: Database — bootstrap roles, apply migrations, seed synthetic data
+        run: |
+          pnpm db:bootstrap
+          pnpm db:migrate:deploy
+          pnpm db:seed
+
+      - name: Database — migrations must match schema.prisma (no drift)
+        working-directory: packages/database
+        run: pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+
+      - name: Database — tenant isolation tests (RLS)
+        run: pnpm test:db
+
+      - name: API — login, session and permission flows against PostgreSQL
+        run: pnpm test:e2e:db
+
+  mobile:
+    name: Flutter (Android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test

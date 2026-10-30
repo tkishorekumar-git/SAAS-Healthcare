@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Tooling caches
+.turbo/
+coverage/
+.eslintcache
+
+# Environment & secrets — NEVER commit real values; only *.env.example files
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+key.properties
+secrets/
+
+# Database dumps / backups (may contain PHI)
+*.sql.gz
+*.dump
+backups/
+
+# Logs
+*.log
+logs/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Flutter / Dart
+apps/mobile/.dart_tool/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/build/
+apps/mobile/.packages
+apps/mobile/pubspec_overrides.yaml
+apps/mobile/android/local.properties
+apps/mobile/android/.gradle/
+apps/mobile/android/app/release/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Generated Prisma client (rebuilt by `prisma generate`)
+packages/database/src/generated/
