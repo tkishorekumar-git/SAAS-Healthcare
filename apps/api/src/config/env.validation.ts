@@ -24,6 +24,8 @@ export const envSchema = z.object({
         .filter(Boolean),
     ),
   SWAGGER_ENABLED: booleanString.optional(),
+  /** Public URL of the web app; staff invitation links point here. */
+  WEB_APP_URL: z.url().default('http://localhost:3000'),
   THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(120),
   DATABASE_URL: z

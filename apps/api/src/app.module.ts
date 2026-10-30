@@ -9,6 +9,8 @@ import { BranchesModule } from './branches/branches.module';
 import { type Env, validateEnv } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { StaffModule } from './staff/staff.module';
+import { TenancyModule } from './tenancy/tenancy.module';
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { HealthModule } from './health/health.module';
     AuthModule,
     BranchesModule,
     HealthModule,
+    StaffModule,
+    TenancyModule,
   ],
   // Guards run in this order: rate limit → authenticate (deny by default) → permissions.
   providers: [

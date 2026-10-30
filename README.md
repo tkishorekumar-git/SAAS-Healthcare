@@ -110,6 +110,14 @@ appear in the API log as `[DEV ONLY] code for ******0002: 123456`.
 
 Staff then complete `POST /api/v1/auth/staff/mfa/verify` with the code from the log.
 
+### Onboarding a hospital (API)
+
+1. Super Admin: `POST /api/v1/platform/tenants` with hospital code, name, plan and the first
+   admin's mobile. In development the invitation link appears in the API log.
+2. The admin opens the link (`/invite?hospital=…&token=…`) — until the web screens exist,
+   call `POST /api/v1/auth/invitations/accept` with the hospital code, token and a password.
+3. The admin logs in and invites staff with `POST /api/v1/staff-invitations`.
+
 ### Super Admin (platform) account
 
 There is no sign-up page for Super Admins. An operator creates the account and enrols an

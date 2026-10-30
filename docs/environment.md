@@ -33,6 +33,7 @@ never print its value.
 | `API_PORT`              | no       | `4000`                   | HTTP port                                                                                                                             |
 | `API_GLOBAL_PREFIX`     | no       | `api`                    | Route prefix → `/api/v1/...`                                                                                                          |
 | `CORS_ORIGINS`          | no       | `http://localhost:3000`  | Comma-separated browser origins allowed to call the API                                                                               |
+| `WEB_APP_URL`           | no       | `http://localhost:3000`  | Public web-app URL; staff invitation links point to `/invite` on it                                                                   |
 | `SWAGGER_ENABLED`       | no       | `true` unless production | Serve Swagger UI at `/{prefix}/docs`                                                                                                  |
 | `THROTTLE_TTL_MS`       | no       | `60000`                  | Rate-limit window in ms                                                                                                               |
 | `THROTTLE_LIMIT`        | no       | `120`                    | Requests allowed per window per client                                                                                                |

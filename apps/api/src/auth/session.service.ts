@@ -192,7 +192,8 @@ export class SessionService {
           userId: auth.userId,
           revokedAt: null,
           expiresAt: { gt: now },
-          user: { status: 'ACTIVE' },
+          // Disabling a user or suspending the hospital ends sessions immediately.
+          user: { status: 'ACTIVE', tenant: { status: 'ACTIVE' } },
         },
         select: { id: true },
       }),

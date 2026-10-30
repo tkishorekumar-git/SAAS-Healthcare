@@ -1,5 +1,11 @@
-import type { AuthClient, CurrentUser, Permission, UserRole } from '@kenisha/shared';
-import { PERMISSIONS, USER_ROLES } from '@kenisha/shared';
+import type {
+  AuthClient,
+  CurrentUser,
+  HealthcareModuleKey,
+  Permission,
+  UserRole,
+} from '@kenisha/shared';
+import { HEALTHCARE_MODULE_KEYS, PERMISSIONS, USER_ROLES } from '@kenisha/shared';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength } from 'class-validator';
 
@@ -115,4 +121,7 @@ export class CurrentUserDto implements CurrentUser {
 
   @ApiProperty({ enum: PERMISSIONS, isArray: true })
   permissions!: Permission[];
+
+  @ApiProperty({ enum: HEALTHCARE_MODULE_KEYS, isArray: true })
+  enabledModules!: HealthcareModuleKey[];
 }

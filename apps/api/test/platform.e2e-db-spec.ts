@@ -13,24 +13,13 @@ import { AppModule } from '../src/app.module';
 import { loadSecretBoxKey, sealSecret } from '../src/auth/crypto/secret-box';
 import { generateTotpSecret, totpCodeForStep, totpStep } from '../src/auth/crypto/totp';
 import { hashPassword } from '../src/auth/password/password-hasher';
-import { SMS_PROVIDER, type SmsProvider } from '../src/auth/sms/sms.provider';
+import { SMS_PROVIDER } from '../src/auth/sms/sms.provider';
 import { configureApp } from '../src/bootstrap/configure-app';
 import type { Env } from '../src/config/env.validation';
+import { CapturingSms } from './support/capturing-sms';
 
 const PASSWORD = 'Monsoon-Ledger-47-Banyan';
 const REASON = 'Synthetic ticket SUP-2001: hospital admin cannot see the branch list';
-
-class CapturingSms implements SmsProvider {
-  readonly sent: Array<{ phone: string; code: string }> = [];
-  async sendOneTimeCode(phone: string, code: string): Promise<void> {
-    this.sent.push({ phone, code });
-  }
-  lastCodeFor(phone: string): string {
-    const message = [...this.sent].reverse().find((m) => m.phone === phone);
-    if (!message) throw new Error(`no SMS sent to ${phone}`);
-    return message.code;
-  }
-}
 
 let app: INestApplication<App>;
 let sms: CapturingSms;
@@ -269,7 +258,7 @@ describe('platform and hospital tokens never cross over', () => {
       .get('/api/v1/platform/tenants')
       .set('Authorization', bearer(superToken))
       .expect(200);
-    expect(tenants.body.map((t: { slug: string }) => t.slug)).toEqual(
+    expect(tenants.body.map((t: { code: string }) => t.code)).toEqual(
       expect.arrayContaining(['gamma-demo', 'delta-demo']),
     );
     ids.superAToken = superToken;

@@ -36,7 +36,6 @@ import type { CookieOptions, Request, Response } from 'express';
 import type { PlatformAuthContext, RequestMeta } from '../auth/auth-context';
 import { CurrentPlatformAuth, PlatformRoute, Public } from '../auth/decorators';
 import type { Env } from '../config/env.validation';
-import { PlatformDatabase } from '../database/platform-database.service';
 import { PlatformAuthService } from './platform-auth.service';
 import type { IssuedPlatformSession } from './platform-session.service';
 import { PlatformSessionService } from './platform-session.service';
@@ -89,14 +88,6 @@ class PlatformMeDto {
   @ApiProperty() email!: string;
   @ApiProperty() displayName!: string;
   @ApiProperty({ enum: ['SUPER_ADMIN'], isArray: true }) roles!: ['SUPER_ADMIN'];
-}
-
-class TenantSummaryDto {
-  @ApiProperty({ format: 'uuid' }) id!: string;
-  @ApiProperty() slug!: string;
-  @ApiProperty() name!: string;
-  @ApiProperty({ enum: ['ONBOARDING', 'ACTIVE', 'SUSPENDED'] }) status!: string;
-  @ApiProperty({ format: 'date-time' }) createdAt!: Date;
 }
 
 class CreateSupportAccessDto {
@@ -230,24 +221,6 @@ export class PlatformAuthController {
 
   private cookieOptions(): CookieOptions {
     return { httpOnly: true, secure: this.cookieSecure, sameSite: 'strict', path: this.cookiePath };
-  }
-}
-
-@ApiTags('platform: hospitals')
-@ApiBearerAuth()
-@PlatformRoute()
-@Controller('platform/tenants')
-export class PlatformTenantsController {
-  constructor(private readonly db: PlatformDatabase) {}
-
-  @Get()
-  @ApiOperation({ summary: 'All hospitals on the platform (no patient or staff data)' })
-  @ApiOkResponse({ type: TenantSummaryDto, isArray: true })
-  list(): Promise<TenantSummaryDto[]> {
-    return this.db.client.tenant.findMany({
-      orderBy: { name: 'asc' },
-      select: { id: true, slug: true, name: true, status: true, createdAt: true },
-    });
   }
 }
 

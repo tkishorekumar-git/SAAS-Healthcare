@@ -8,7 +8,8 @@ Each milestone ends with a review and explicit approval before the next one star
 | 2   | **Database foundation** — Prisma, tenancy tables (tenants, branches, subscriptions), RLS, migrations, synthetic seed, readiness check                              | ✅ Complete                             |
 | 3a  | **Identity & access (hospital users)** — hospital-first login, patient SMS-code login, staff password + SMS factor, sessions, permissions, branch scope, audit log | ✅ Complete                             |
 | 3b  | **Identity & access (platform)** — Super Admin login with authenticator app, break-glass support access                                                            | ✅ Complete                             |
-| 4   | **Tenant administration** — Super Admin console, hospital onboarding, branches, staff, subscriptions                                                               | Planned                                 |
+| 4a  | **Tenant administration (API)** — onboarding, SMS staff invitations, staff/branch management, settings, plan limits, suspension                                    | ✅ Complete — awaiting approval         |
+| 4b  | **Tenant administration (web)** — first admin web screens: sign-in, invitation acceptance, Hospital Admin and Super Admin consoles                                 | Next                                    |
 | 5   | **Security review gate** — threat model, pen-test checklist, logging/PHI review                                                                                    | Planned (required before clinical work) |
 | 6   | **Patient registry** — patients, guardians, consent, shared clinical foundations                                                                                   | Planned                                 |
 | 7+  | Clinical modules — Hospital Management, Chronic Care, Maternal, Pediatric                                                                                          | Planned                                 |
@@ -52,3 +53,17 @@ Each milestone ends with a review and explicit approval before the next one star
 - Fixed: timestamps shifted by the database server's time zone (connections now force UTC);
   migrations are now atomic.
 - 11 new database tests, 14 new API end-to-end tests, RFC test vectors; mutation-checked.
+
+## Milestone 4a deliverables
+
+- `staff_invitations` with database-enforced lifecycle and the one narrow platform grant
+  (first-admin invitations only); `tenant_usage()` (counts only); one-way hospital activation.
+- Invitations: SMS link, 72-hour single-use token (hash stored), inspect/accept, resend,
+  revoke; the invitee sets their own password.
+- Hospital Admin: staff list, roles, branches, disable/enable, unlock; branches create/edit/
+  deactivate/reactivate; settings (name, branch scope, SMS-factor mode).
+- Super Admin: onboard a hospital, list/detail with usage, change plan, suspend/reactivate,
+  resend first-admin invitation.
+- Plan limits (branches, staff incl. pending invitations, modules) with row locking;
+  `/auth/me` returns enabled modules.
+- 17 new database tests, 22 new API end-to-end tests; mutation-checked.

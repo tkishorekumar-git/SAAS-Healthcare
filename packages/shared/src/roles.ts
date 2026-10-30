@@ -45,6 +45,14 @@ export const ROLE_LABELS: Readonly<Record<UserRole, string>> = {
   PARENT_GUARDIAN: 'Parent / Guardian',
 };
 
+/** Roles a hospital can give its staff (never platform or care-recipient roles). */
+export const STAFF_ROLES = USER_ROLES.filter(
+  (role): role is Exclude<UserRole, 'SUPER_ADMIN' | 'PATIENT' | 'PARENT_GUARDIAN'> =>
+    ROLE_SCOPES[role] === 'TENANT_STAFF',
+);
+
+export type StaffRole = (typeof STAFF_ROLES)[number];
+
 export function isUserRole(value: unknown): value is UserRole {
   return typeof value === 'string' && (USER_ROLES as readonly string[]).includes(value);
 }

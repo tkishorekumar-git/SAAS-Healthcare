@@ -50,4 +50,5 @@
 
 - [ADR-0001](adr/0001-monorepo-and-tooling.md) — Monorepo with pnpm + Turborepo _(accepted)_
 - [ADR-0002](adr/0002-tenant-isolation.md) — Shared schema + `tenant_id` + RLS _(accepted)_
-- [ADR-0003](adr/0003-identity-and-access.md) — Identity, authentication and authorization _(proposed — needs approval)_
+- [ADR-0003](adr/0003-identity-and-access.md) — Identity, authentication and authorization _(accepted)_
+- [ADR-0004](adr/0004-tenant-administration.md) — Tenant administration _(accepted)_

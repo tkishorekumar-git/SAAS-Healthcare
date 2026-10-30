@@ -23,11 +23,12 @@ const TENANT_CODE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 export interface ResolvedTenant {
   tenantId: TenantId;
   isActive: boolean;
+  status: 'ONBOARDING' | 'ACTIVE' | 'SUSPENDED';
 }
 
 /**
  * Looks up a hospital by its login code (slug) before any tenant context exists, via the
- * `resolve_tenant` database function, which reveals only the ID and active flag.
+ * `resolve_tenant` database function, which reveals only the ID, active flag and status.
  */
 export async function resolveTenantByCode(
   prisma: PrismaClient,
@@ -37,14 +38,15 @@ export async function resolveTenantByCode(
   if (!TENANT_CODE.test(normalized)) {
     return null;
   }
-  const rows = await prisma.$queryRaw<Array<{ tenant_id: string; is_active: boolean }>>`
-    SELECT tenant_id, is_active FROM resolve_tenant(${normalized})`;
+  const rows = await prisma.$queryRaw<
+    Array<{ tenant_id: string; is_active: boolean; status: ResolvedTenant['status'] }>
+  >`SELECT tenant_id, is_active, status FROM resolve_tenant(${normalized})`;
   const row = rows[0];
   if (!row) {
     return null;
   }
   assertTenantId(row.tenant_id);
-  return { tenantId: row.tenant_id, isActive: row.is_active };
+  return { tenantId: row.tenant_id, isActive: row.is_active, status: row.status };
 }
 
 export interface WithTenantOptions {

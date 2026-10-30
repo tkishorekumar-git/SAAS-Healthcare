@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { ROLE_LABELS, ROLE_SCOPES, USER_ROLES, isCrossTenantRole, isUserRole } from './roles';
+import {
+  ROLE_LABELS,
+  ROLE_SCOPES,
+  STAFF_ROLES,
+  USER_ROLES,
+  isCrossTenantRole,
+  isUserRole,
+} from './roles';
 
 describe('roles', () => {
   it('defines a scope and label for every role', () => {
@@ -14,6 +21,14 @@ describe('roles', () => {
     expect(isUserRole('doctor')).toBe(false);
     expect(isUserRole('ROOT')).toBe(false);
     expect(isUserRole(42)).toBe(false);
+  });
+
+  it('defines staff roles as hospital staff only', () => {
+    expect(STAFF_ROLES).not.toContain('SUPER_ADMIN');
+    expect(STAFF_ROLES).not.toContain('PATIENT');
+    expect(STAFF_ROLES).not.toContain('PARENT_GUARDIAN');
+    expect(STAFF_ROLES).toContain('HOSPITAL_ADMIN');
+    expect(STAFF_ROLES).toHaveLength(7);
   });
 
   it('allows only Super Admin to operate across tenants', () => {

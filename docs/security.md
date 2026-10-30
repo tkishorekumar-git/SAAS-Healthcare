@@ -73,6 +73,16 @@ carries SIM-swap risk (ADR-0003 §3).
 prefix allows adding one); no self-service authenticator reset (operator re-creates the
 account); no new-device login alerts yet (carried over from 3a).
 
+## Already in place (Milestone 4a)
+
+- Staff accounts are created only through single-use, 72-hour SMS invitations; only token
+  hashes are stored; admins never know passwords.
+- The Super Admin's only access to a hospital table is creating first-admin invitations
+  (enforced by row policies); hospitals cannot forge platform invitations.
+- Plan limits are enforced under a row lock; usage is exposed to the platform as counts only.
+- Role changes, disabling a user and suspending a hospital end the affected sessions at once.
+- Every administrative change is written to the hospital or platform audit log.
+
 ## Pre-clinical security review checklist (Milestone 5 gate)
 
 - [ ] Threat model (STRIDE) for API, web, mobile, infrastructure

@@ -82,14 +82,16 @@ afterAll(async () => {
 });
 
 describe('resolveTenantByCode (pre-login hospital lookup)', () => {
-  it('returns only the tenant ID and active flag, case-insensitively', async () => {
+  it('returns only the tenant ID, active flag and status, case-insensitively', async () => {
     await expect(resolveTenantByCode(app, '  ID-Hospital-A ')).resolves.toEqual({
       tenantId: tenantA,
       isActive: true,
+      status: 'ACTIVE',
     });
     await expect(resolveTenantByCode(app, 'id-hospital-b')).resolves.toEqual({
       tenantId: tenantB,
       isActive: false,
+      status: 'ONBOARDING',
     });
   });
 
@@ -101,7 +103,7 @@ describe('resolveTenantByCode (pre-login hospital lookup)', () => {
   it('exposes no other tenant columns', async () => {
     const rows = await app.$queryRaw<Record<string, unknown>[]>`
       SELECT * FROM resolve_tenant('id-hospital-a')`;
-    expect(Object.keys(rows[0] ?? {}).sort()).toEqual(['is_active', 'tenant_id']);
+    expect(Object.keys(rows[0] ?? {}).sort()).toEqual(['is_active', 'status', 'tenant_id']);
   });
 
   it('cannot be called by the platform role', async () => {

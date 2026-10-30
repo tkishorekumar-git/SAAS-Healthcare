@@ -19,6 +19,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
+import { PlanLimitsService } from '../tenancy/plan-limits.service';
 import type { Env } from '../config/env.validation';
 import { TenantDatabase } from '../database/tenant-database.service';
 import type { AuthContext, RequestMeta } from './auth-context';
@@ -59,6 +60,7 @@ export class AuthService {
     private readonly db: TenantDatabase,
     private readonly sessions: SessionService,
     private readonly audit: AuditService,
+    private readonly limits: PlanLimitsService,
     @Inject(SMS_PROVIDER) private readonly sms: SmsProvider,
     config: ConfigService<Env, true>,
   ) {
@@ -380,8 +382,8 @@ export class AuthService {
   // ---------------------------------------------------------------------------
 
   async currentUser(auth: AuthContext): Promise<CurrentUser> {
-    const user = await this.db.run(auth.tenantId, (tx) =>
-      tx.user.findUniqueOrThrow({
+    const { user, plan } = await this.db.run(auth.tenantId, async (tx) => ({
+      user: await tx.user.findUniqueOrThrow({
         where: { id: auth.userId },
         select: {
           id: true,
@@ -390,7 +392,8 @@ export class AuthService {
           roles: { select: { role: true } },
         },
       }),
-    );
+      plan: await this.limits.limits(tx),
+    }));
     const roles = user.roles.map((r) => r.role as UserRole);
     return {
       userId: user.id,
@@ -399,6 +402,7 @@ export class AuthService {
       accountKind: user.accountKind,
       roles,
       permissions: [...permissionsForRoles(roles)].sort(),
+      enabledModules: plan.enabledModules,
     };
   }
 

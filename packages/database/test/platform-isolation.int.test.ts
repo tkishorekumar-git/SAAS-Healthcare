@@ -165,7 +165,9 @@ describe('break-glass requests', () => {
     );
 
     const revoked = await decide(approved, { status: 'REVOKED' });
-    expect(revoked.approvedUntil!.getTime()).toBeLessThanOrEqual(Date.now());
+    // Revoking ends the grant now (database clock), not at the approved 10-minute mark.
+    // Compared with a margin: the database and test clocks can differ by a few ms.
+    expect(revoked.approvedUntil!.getTime()).toBeLessThan(now.getTime() + 60_000);
     await expect(decide(approved, { status: 'APPROVED' })).rejects.toThrow(/cannot move/);
   });
 

@@ -1,3 +1,4 @@
+import type { HealthcareModuleKey } from './modules';
 import type { Permission } from './permissions';
 import type { UserRole } from './roles';
 
@@ -29,4 +30,6 @@ export interface CurrentUser {
   accountKind: 'STAFF' | 'PERSONAL';
   roles: UserRole[];
   permissions: Permission[];
+  /** Product modules enabled by the hospital's current plan (ADR-0004, T4). */
+  enabledModules: HealthcareModuleKey[];
 }

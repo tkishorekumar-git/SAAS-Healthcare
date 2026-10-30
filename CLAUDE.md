@@ -82,6 +82,8 @@ Flutter: `cd apps/mobile && flutter analyze && flutter test`.
   `@CurrentAuth()`. Tenant ID always comes from `CurrentAuth`, never from the request.
 - Super Admin endpoints live under `/platform`, are marked `@PlatformRoute()` and use only
   `PlatformDatabase` (kenisha_platform) — never `TenantDatabase`.
+- Anything that consumes plan capacity (staff, branches) calls `PlanLimitsService.assert*`
+  inside the same transaction as the change.
 - Feature code reaches the database only through `TenantDatabase.run(tenantId, tx => …)`.
 - Security-relevant actions write an audit event (`AuditService.record`) in the same
   transaction — IDs and reason codes only, never codes, tokens, passwords or PHI.

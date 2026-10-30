@@ -10,23 +10,12 @@ import request from 'supertest';
 import type { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { hashPassword } from '../src/auth/password/password-hasher';
-import { SMS_PROVIDER, type SmsProvider } from '../src/auth/sms/sms.provider';
+import { SMS_PROVIDER } from '../src/auth/sms/sms.provider';
 import { configureApp } from '../src/bootstrap/configure-app';
 import type { Env } from '../src/config/env.validation';
+import { CapturingSms } from './support/capturing-sms';
 
 const PASSWORD = 'Monsoon-Ledger-47-Banyan';
-
-class CapturingSms implements SmsProvider {
-  readonly sent: Array<{ phone: string; code: string }> = [];
-  async sendOneTimeCode(phone: string, code: string): Promise<void> {
-    this.sent.push({ phone, code });
-  }
-  lastCodeFor(phone: string): string {
-    const message = [...this.sent].reverse().find((m) => m.phone === phone);
-    if (!message) throw new Error(`no SMS sent to ${phone}`);
-    return message.code;
-  }
-}
 
 let app: INestApplication<App>;
 let sms: CapturingSms;
