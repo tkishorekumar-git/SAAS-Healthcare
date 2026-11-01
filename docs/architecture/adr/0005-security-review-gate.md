@@ -1,6 +1,6 @@
 # ADR-0005: Security review gate before clinical work
 
-- **Status:** Accepted — decisions S1–S4 by product owner 2026-11-01. Delivered in two parts:
+- **Status:** Accepted — decisions S1–S4 by product owner 2026-11-01; 5a approved 2026-11-01. Delivered in two parts:
   **5a** code and process review (section 1) and **5b** production deployment (section 2)
 - **Date:** 2026-11-01
 - **Builds on:** [ADR-0002](0002-tenant-isolation.md), [ADR-0003](0003-identity-and-access.md),
