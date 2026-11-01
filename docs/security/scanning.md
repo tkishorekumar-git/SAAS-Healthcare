@@ -13,7 +13,9 @@ build.
 | Code                | Semgrep CE 1.95.0  | TypeScript, Node, React, secrets rule packs | [`.semgrepignore`](../../.semgrepignore)     |
 | Container images    | Trivy 0.57.1       | All four production images (`images.yml`)   | high/critical with a fix available fail      |
 
-Dependabot (weekly) proposes updates for npm, pub and GitHub Actions.
+Dependabot proposes one grouped minor/patch update per ecosystem (npm, pub, Docker, GitHub
+Actions). Major versions are upgraded deliberately on their own branch; a vulnerability
+that needs one still fails the scans above.
 
 ## When a scan fails
 

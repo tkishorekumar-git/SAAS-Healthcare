@@ -1,24 +1,51 @@
 version: 2
+
+# Dependabot opens one grouped pull request per ecosystem for minor and patch updates.
+# Major versions are not proposed automatically: they can change behaviour (build tools,
+# test runners, frameworks) and are upgraded deliberately, one at a time, on their own
+# branch. Known vulnerabilities in any version still fail CI through OSV-Scanner and Trivy
+# (docs/security/scanning.md), so a security fix that needs a major upgrade is not missed.
+
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
     groups:
-      nestjs:
-        patterns: ['@nestjs/*']
-      nextjs:
-        patterns: ['next', 'eslint-config-next', 'react', 'react-dom', '@types/react*']
+      npm-minor-and-patch:
+        update-types: ['minor', 'patch']
+
   - package-ecosystem: pub
     directory: /apps/mobile
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+    groups:
+      pub-minor-and-patch:
+        update-types: ['minor', 'patch']
+
   - package-ecosystem: docker
     directory: /deploy/docker
     schedule:
       interval: weekly
+    ignore:
+      # node:24 -> 26, postgres:18 -> 19: planned upgrades, not automatic ones.
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+    groups:
+      actions-minor-and-patch:
+        update-types: ['minor', 'patch']
