@@ -1,7 +1,8 @@
 # Deployment (planned)
 
-**Status:** design only. Production Dockerfiles, Caddy configuration and backup automation
-are delivered in the deployment milestone (see [roadmap.md](roadmap.md)).
+**Status:** design only, decided in [ADR-0006](architecture/adr/0006-production-deployment.md).
+Production Dockerfiles, Caddy configuration and backup automation are delivered in
+Milestone 5b (see [roadmap.md](roadmap.md)).
 
 ## Target topology — Hostinger VPS
 
@@ -21,11 +22,10 @@ Internet ──► Caddy :443 (auto TLS, HSTS, rate limits)
 
 ## Backups
 
-- Nightly `pg_dump` (custom format), encrypted (age/GPG), shipped off-site
-  (e.g. S3-compatible object storage in an Indian region for data residency).
-- Retention: 7 daily, 4 weekly, 12 monthly (confirm against legal retention rules).
-- WAL archiving / point-in-time recovery evaluated once data volume justifies it.
-- Monthly automated restore test into a scratch database.
+Decided in [ADR-0006](architecture/adr/0006-production-deployment.md): pgBackRest with
+continuous WAL archiving and weekly full backups, pulled by a separate backup VPS in India,
+encrypted before storage, with a monthly automated restore test. Retention to be confirmed
+against legal retention rules ([data-retention.md](security/runbooks/data-retention.md)).
 
 ## Scaling path
 
