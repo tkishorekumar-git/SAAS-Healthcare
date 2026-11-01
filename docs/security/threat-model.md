@@ -55,7 +55,8 @@ Legend: ✅ mitigated with evidence · 🟡 partly mitigated · ⛔ open (gate n
 | S7  | Account enumeration on login                 | Generic messages; equal work for unknown accounts                                                                | `auth.e2e-db-spec.ts`                                     | ✅    |
 
 S2 and S4 stay 🟡: the bundled breached-password list is short until it is refreshed
-(`passwords:update`), and per-IP limits are per process until Redis (5b).
+(`passwords:update`), and SMS remains a weaker factor. Per-IP limits are shared through
+Redis since 5b.
 
 ### Tampering
 
@@ -65,7 +66,7 @@ S2 and S4 stay 🟡: the bundled breached-password list is short until it is ref
 | T2  | Smuggled `tenantId` or extra fields in requests | Global `whitelist` + `forbidNonWhitelisted`                                                              | `auth-guard.e2e-spec.ts`, `isolation.e2e-db-spec.ts`                   | ✅    |
 | T3  | Audit log altered or deleted                    | INSERT + SELECT grants only; no UPDATE/DELETE for any application role                                   | `identity-isolation.int.test.ts`                                       | ✅    |
 | T4  | Break-glass grant widened or self-approved      | Transition trigger; maximum window; approval only by Hospital Admin                                      | `platform-isolation.int.test.ts`                                       | ✅    |
-| T5  | Malicious dependency or base image              | Lockfile; Dependabot; OSV-Scanner fails CI on known vulnerabilities; image scanning in 5b                | `ci.yml` security job; [scanning.md](scanning.md)                      | 🟡    |
+| T5  | Malicious dependency or base image              | Lockfile; Dependabot; OSV-Scanner on dependencies; Trivy on every image; releases pinned by image digest | `ci.yml` security job, `images.yml`; [scanning.md](scanning.md)        | ✅    |
 
 ### Repudiation
 
@@ -77,30 +78,31 @@ S2 and S4 stay 🟡: the bundled breached-password list is short until it is ref
 
 ### Information disclosure
 
-| #   | Threat                                    | Mitigation                                                                                                                   | Evidence                                                               | State |
-| --- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----- |
-| I1  | Cross-tenant reads                        | RLS forced on every table; API never accepts tenant IDs; list endpoints checked for foreign IDs                              | `isolation.e2e-db-spec.ts`, database isolation suites                  | ✅    |
-| I2  | PHI in logs                               | IDs only by convention; errors logged as class + code; planted canary names/phones searched in every log line at every level | `isolation.e2e-db-spec.ts` (canaries), `safe-exception.filter.spec.ts` | ✅    |
-| I3  | PHI in error responses                    | Global filter: fixed body for unexpected errors; no echo of malformed JSON or unknown paths                                  | `safe-exception.filter.spec.ts`, `auth-guard.e2e-spec.ts`              | ✅    |
-| I4  | PHI in URLs                               | IDs in paths only; the invitation token is removed from the URL after reading                                                | Route inventory; `invite-form.test.tsx`                                | ✅    |
-| I5  | Super Admin reads hospital data           | No grants on hospital tables; break-glass is read-only, time-boxed, hospital-approved                                        | `platform-isolation.int.test.ts`                                       | ✅    |
-| I6  | Database dump or backup leaked            | Disk and backup encryption (5b); field-level encryption of national IDs (Milestone 6, ADR-0005 S2)                           | Gates: 5b, Milestone 6                                                 | ⛔    |
-| I7  | Tokens stolen by XSS in the web app       | Access token in memory only; refresh token HttpOnly; React escaping; no `dangerouslySetInnerHTML`                            | `session-manager.test.ts`; Semgrep in CI                               | 🟡    |
-| I8  | Secrets committed to git                  | `.gitignore`; gitleaks over full history in CI                                                                               | `ci.yml` security job                                                  | ✅    |
-| I9  | Expired auth data kept longer than needed | Hourly purge; database policies restrict it to rows past retention                                                           | `security-review.int.test.ts`                                          | ✅    |
+| #   | Threat                                    | Mitigation                                                                                                                                | Evidence                                                                                                        | State |
+| --- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----- |
+| I1  | Cross-tenant reads                        | RLS forced on every table; API never accepts tenant IDs; list endpoints checked for foreign IDs                                           | `isolation.e2e-db-spec.ts`, database isolation suites                                                           | ✅    |
+| I2  | PHI in logs                               | IDs only by convention; errors logged as class + code; planted canary names/phones searched in every log line at every level              | `isolation.e2e-db-spec.ts` (canaries), `safe-exception.filter.spec.ts`                                          | ✅    |
+| I3  | PHI in error responses                    | Global filter: fixed body for unexpected errors; no echo of malformed JSON or unknown paths                                               | `safe-exception.filter.spec.ts`, `auth-guard.e2e-spec.ts`                                                       | ✅    |
+| I4  | PHI in URLs                               | IDs in paths only; the invitation token is removed from the URL after reading                                                             | Route inventory; `invite-form.test.tsx`                                                                         | ✅    |
+| I5  | Super Admin reads hospital data           | No grants on hospital tables; break-glass is read-only, time-boxed, hospital-approved                                                     | `platform-isolation.int.test.ts`                                                                                | ✅    |
+| I6  | Database dump or backup leaked            | LUKS-encrypted data volume; backups encrypted (AES-256) before writing; field-level encryption of national IDs (Milestone 6, ADR-0005 S2) | [server-build.md](runbooks/server-build.md), [backup-restore.md](runbooks/backup-restore.md); gate: Milestone 6 | 🟡    |
+| I7  | Tokens stolen by XSS in the web app       | Access token in memory only; refresh token HttpOnly; React escaping; nonce-based CSP without `'unsafe-inline'` scripts                    | `session-manager.test.ts`, `csp.test.ts`; browser check on the production build                                 | ✅    |
+| I8  | Secrets committed to git                  | `.gitignore`; gitleaks over full history in CI                                                                                            | `ci.yml` security job                                                                                           | ✅    |
+| I9  | Expired auth data kept longer than needed | Hourly purge; database policies restrict it to rows past retention                                                                        | `security-review.int.test.ts`                                                                                   | ✅    |
 
-I7 stays 🟡 until a Content-Security-Policy is added (5b, together with the reverse proxy).
+I6 stays 🟡 until field-level encryption ships with Milestone 6 and the server build has
+proved the encrypted volume and backups.
 
 ### Denial of service
 
-| #   | Threat                                 | Mitigation                                                               | Evidence                                                      | State |
-| --- | -------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------- | ----- |
-| D1  | Request floods                         | Global and per-login rate limits; 100 kB JSON body limit                 | `app.module.ts`, `auth.controller.ts` (no automated test yet) | 🟡    |
-| D2  | Expensive password hashing as a weapon | Password length cap (128); login rate limits                             | `password.spec.ts`                                            | ✅    |
-| D3  | SMS cost abuse (codes, alerts)         | Per-number cooldown and window limits; alerts only without an SMS factor | `auth.e2e-db-spec.ts`                                         | ✅    |
+| #   | Threat                                 | Mitigation                                                                          | Evidence                                                                              | State |
+| --- | -------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ----- |
+| D1  | Request floods                         | Rate limits shared through Redis; 100 kB JSON / 1 MB request limits; Caddy in front | `redis-throttler.storage.spec.ts`, `redis-throttle.e2e-db-spec.ts` (real Redis in CI) | 🟡    |
+| D2  | Expensive password hashing as a weapon | Password length cap (128); login rate limits                                        | `password.spec.ts`                                                                    | ✅    |
+| D3  | SMS cost abuse (codes, alerts)         | Per-number cooldown and window limits; alerts only without an SMS factor            | `auth.e2e-db-spec.ts`                                                                 | ✅    |
 
-D1 stays 🟡: limits are per process until Redis (5b), have no automated test yet (added with
-the Redis store in 5b), and there is no upstream protection yet (5b).
+D1 stays 🟡: there is no upstream DDoS protection; a single VPS can be overwhelmed. Revisit
+before the first real hospital (provider-level protection or a CDN in India).
 
 ### Elevation of privilege
 
@@ -112,22 +114,41 @@ the Redis store in 5b), and there is no upstream protection yet (5b).
 | E4  | API connects with a role that can bypass RLS | Readiness check fails; roles created without `BYPASSRLS`                                                         | `health.service.spec.ts`, `tenant-isolation.int.test.ts` | ✅    |
 | E5  | Assigning another hospital's branch          | Composite foreign keys `(tenant_id, id)`                                                                         | `isolation.e2e-db-spec.ts`                               | ✅    |
 
-## 4. Mobile (Android)
+## 4. Infrastructure (Milestone 5b)
+
+| #   | Threat                                           | Mitigation                                                                                                  | Evidence                                                           | State |
+| --- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----- |
+| N1  | Traffic intercepted                              | TLS 1.2/1.3 only, HSTS, HTTP redirected; Caddy-managed certificates                                         | `Caddyfile`; SSL Labs check in server build                        | 🟡    |
+| N2  | Database or Redis reached from outside           | Internal Docker network with no published ports; firewall 22/80/443                                         | `compose.yml`, `images.yml` validation                             | ✅    |
+| N3  | Server takeover via SSH                          | Keys only, no root login, fail2ban, unattended security updates                                             | [server-build.md](runbooks/server-build.md)                        | 🟡    |
+| N4  | Container escape / tampering                     | Non-root users, read-only file systems, no capabilities, `no-new-privileges`                                | `Dockerfile`, `compose.yml`                                        | ✅    |
+| N5  | Malicious or wrong deployment                    | Manual workflow with required approval; forced SSH command accepts only a commit SHA; digest-pinned release | `deploy.yml`, `deploy.sh`                                          | ✅    |
+| N6  | Backups deleted by an attacker on the app server | Backup VPS pulls with a read-only key; hard-link snapshots; shrink alert                                    | `backup-pull.sh`                                                   | ✅    |
+| N7  | Backups unusable when needed                     | Monthly automated restore test with recorded result; DR rehearsal before go-live                            | `restore-test.sh`, [backup-restore.md](runbooks/backup-restore.md) | 🟡    |
+| N8  | Tokens or PHI in proxy logs                      | Caddy logs drop query strings and all headers                                                               | `Caddyfile`                                                        | ✅    |
+| N9  | Client address spoofing                          | API trusts exactly one proxy hop, only when deployed behind Caddy                                           | `env.validation.spec.ts`                                           | ✅    |
+
+N1, N3 and N7 become ✅ once the first server build records them (SSL Labs grade, SSH
+settings, first restore test `PASS`).
+
+## 5. Mobile (Android)
 
 The Flutter app is still a skeleton without login. Checked now: no secrets or API keys in
 the code; configuration only through public `--dart-define` values. **Gate (Android login
 milestone):** tokens in Android Keystore-backed secure storage, release builds HTTPS-only
 (no cleartext traffic), certificate checks not disabled, no PHI in crash reports.
 
-## 5. Open items and gates
+## 6. Open items and gates
 
-| Item                                                            | Gate                              |
-| --------------------------------------------------------------- | --------------------------------- |
-| TLS 1.2+, HSTS, CSP, disk + backup encryption, restore test     | Milestone 5b                      |
-| Redis-backed rate limits; container image scanning              | Milestone 5b                      |
-| Audit every clinical-record read/change; field-level encryption | Milestone 6                       |
-| Refresh the breached-password list (`passwords:update`)         | Before the first real hospital    |
-| SMS provider selection and DLT templates                        | Before the first real hospital    |
-| Independent penetration test (ADR-0005 S3)                      | Before the first real hospital    |
-| Super Admin new-device alerts (needs an email provider)         | Before the first real hospital    |
-| Legal confirmation of retention periods                         | Before Milestone 6 stores records |
+| Item                                                                      | Gate                              |
+| ------------------------------------------------------------------------- | --------------------------------- |
+| First server build: TLS rating, encrypted volume, first restore test PASS | First staging server build        |
+| Upstream DDoS protection                                                  | Before the first real hospital    |
+| Backup copy at a second provider, or written acceptance (ADR-0006 P2)     | Before the first real hospital    |
+| Disaster-recovery rehearsal                                               | Before the first real hospital    |
+| Audit every clinical-record read/change; field-level encryption           | Milestone 6                       |
+| Refresh the breached-password list (`passwords:update`)                   | Before the first real hospital    |
+| SMS provider selection and DLT templates                                  | Before the first real hospital    |
+| Independent penetration test (ADR-0005 S3)                                | Before the first real hospital    |
+| Super Admin new-device alerts (needs an email provider)                   | Before the first real hospital    |
+| Legal confirmation of retention periods                                   | Before Milestone 6 stores records |

@@ -21,12 +21,12 @@ Result: **Pass** = met with evidence Â· **Partial** = met except the noted gap Â
 | V6 Stored cryptography             | Partial | Node `crypto` only (no custom primitives); AES-256-GCM with random IVs; SHA-256 for random tokens; HMAC for codes; key IDs and rotation procedures. **Gate:** field-level encryption of national IDs (Milestone 6), disk and backup encryption (5b)  |
 | V7 Error handling & logging        | Pass    | Fixed error bodies; unexpected errors logged as class + code + error ID; PHI canary test over every log level; audit log append-only and in the same transaction as changes                                                                          |
 | V8 Data protection                 | Partial | No tokens in browser storage; no PHI in URLs; data minimisation purge; `no-referrer` on the invitation page. **Gate:** cache-control review of clinical responses (Milestone 6); retention periods (legal counsel)                                   |
-| V9 Communication                   | Gate    | TLS 1.2+, HSTS and certificate management are delivered by Caddy in 5b                                                                                                                                                                               |
+| V9 Communication                   | Pass    | TLS 1.2/1.3 only and HSTS at Caddy (5b); internal traffic on a private Docker network; to be confirmed by an SSL Labs check at the first server build                                                                                                |
 | V10 Malicious code                 | Pass    | Lockfile; Dependabot; OSV-Scanner, Semgrep and gitleaks in CI; no dynamic code execution                                                                                                                                                             |
 | V11 Business logic                 | Pass    | Plan limits under row locks; invitation and break-glass lifecycles enforced by database triggers; per-number SMS limits; optimistic lock on TOTP steps                                                                                               |
 | V12 Files & resources              | N/A     | No file upload or download yet. **Gate:** Milestone 6+ (documents, images) must add size/type checks, storage outside the web root and malware scanning                                                                                              |
-| V13 API & web services             | Partial | Versioned REST, strict JSON parsing with a size limit, CORS allow-list, Swagger disabled in production by default. **Gap:** rate limits per process until Redis (5b)                                                                                 |
-| V14 Configuration                  | Partial | Environment validated at start-up without echoing values; security headers (Helmet, Next.js); secrets only in the environment; pinned scanner images. **Gate:** production Dockerfiles, CSP and HSTS (5b)                                            |
+| V13 API & web services             | Pass    | Versioned REST, strict JSON parsing with size limits, CORS allow-list, Swagger off in production and blocked at the proxy, rate limits shared through Redis (5b)                                                                                     |
+| V14 Configuration                  | Pass    | Environment validated at start-up without echoing values; Helmet + nonce CSP; non-root read-only containers; images scanned and pinned by digest; secrets only in root-only server files (5b)                                                        |
 
 ## Findings fixed during this review
 
@@ -41,4 +41,4 @@ Result: **Pass** = met with evidence Â· **Partial** = met except the noted gap Â
 
 ## Open items
 
-Tracked in the [threat model](threat-model.md#5-open-items-and-gates).
+Tracked in the [threat model](threat-model.md#6-open-items-and-gates).

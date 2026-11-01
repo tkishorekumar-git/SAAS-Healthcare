@@ -44,7 +44,9 @@
         "DATABASE_ADMIN_URL",
         "MIGRATION_DATABASE_URL",
         "APP_DATABASE_URL",
-        "PLATFORM_DATABASE_URL"
+        "PLATFORM_DATABASE_URL",
+        "KENISHA_TEST_REDIS_URL",
+        "CI"
       ]
     }
   }

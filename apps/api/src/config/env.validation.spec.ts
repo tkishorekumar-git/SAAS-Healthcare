@@ -62,4 +62,33 @@ describe('validateEnv', () => {
   it('rejects an out-of-range port', () => {
     expect(() => validateEnv({ ...required, API_PORT: '70000' })).toThrow(/API_PORT/);
   });
+
+  describe('deployments (ADR-0006)', () => {
+    const production = { ...required, NODE_ENV: 'production' };
+
+    it('requires Redis in production so rate limits survive restarts', () => {
+      expect(() => validateEnv({ ...production, DEPLOYMENT_ENV: 'staging' })).toThrow(/REDIS_URL/);
+      expect(
+        validateEnv({ ...production, DEPLOYMENT_ENV: 'staging', REDIS_URL: 'redis://r:6379' })
+          .REDIS_URL,
+      ).toBe('redis://r:6379');
+    });
+
+    it('never allows the SMS stub in the production deployment', () => {
+      expect(() =>
+        validateEnv({ ...production, DEPLOYMENT_ENV: 'production', REDIS_URL: 'redis://r:6379' }),
+      ).toThrow(/SMS_PROVIDER/);
+    });
+
+    it('requires a named deployment when NODE_ENV is production', () => {
+      expect(() => validateEnv({ ...production, REDIS_URL: 'redis://r:6379' })).toThrow(
+        /DEPLOYMENT_ENV/,
+      );
+    });
+
+    it('trusts no proxy unless told to', () => {
+      expect(validateEnv(required).TRUST_PROXY_HOPS).toBe(0);
+      expect(validateEnv({ ...required, TRUST_PROXY_HOPS: '1' }).TRUST_PROXY_HOPS).toBe(1);
+    });
+  });
 });

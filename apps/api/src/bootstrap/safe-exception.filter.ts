@@ -75,7 +75,7 @@ function clientErrorStatus(exception: unknown): number | undefined {
 export function describeError(exception: unknown): string {
   if (!(exception instanceof Error)) return 'non-error exception';
   const code = (exception as { code?: unknown }).code;
-  return typeof code === 'string' && /^[A-Z0-9_]{1,10}$/.test(code)
+  return typeof code === 'string' && /^[A-Z0-9_]{1,32}$/.test(code)
     ? `${exception.name} [${code}]`
     : exception.name;
 }

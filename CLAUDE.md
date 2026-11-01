@@ -13,16 +13,17 @@ Current milestone and roadmap: [docs/roadmap.md](docs/roadmap.md).
 
 ## Repository map
 
-| Path                                          | Purpose                                                                                     |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `apps/api`                                    | NestJS REST API (`@kenisha/api`) — the only component that touches the database             |
-| `apps/web`                                    | Next.js App Router web app (`@kenisha/web`)                                                 |
-| `apps/mobile`                                 | Flutter Android app (not a pnpm workspace package)                                          |
-| `packages/shared`                             | Framework-agnostic types/constants (`@kenisha/shared`), built with tsup                     |
-| `packages/ui`                                 | shadcn/ui React components (`@kenisha/ui`), consumed as source                              |
-| `packages/database`                           | Prisma 7 schema, append-only migrations, RLS policies, `withTenant()` (`@kenisha/database`) |
-| `packages/tsconfig`, `packages/eslint-config` | Shared strict tooling config                                                                |
-| `docs/`                                       | Architecture, ADRs, security, environment reference                                         |
+| Path                                          | Purpose                                                                                      |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `apps/api`                                    | NestJS REST API (`@kenisha/api`) — the only component that touches the database              |
+| `apps/web`                                    | Next.js App Router web app (`@kenisha/web`)                                                  |
+| `apps/mobile`                                 | Flutter Android app (not a pnpm workspace package)                                           |
+| `packages/shared`                             | Framework-agnostic types/constants (`@kenisha/shared`), built with tsup                      |
+| `packages/ui`                                 | shadcn/ui React components (`@kenisha/ui`), consumed as source                               |
+| `packages/database`                           | Prisma 7 schema, append-only migrations, RLS policies, `withTenant()` (`@kenisha/database`)  |
+| `packages/tsconfig`, `packages/eslint-config` | Shared strict tooling config                                                                 |
+| `deploy/`                                     | Production images, server Compose stack, Caddy, pgBackRest, deploy/backup scripts (ADR-0006) |
+| `docs/`                                       | Architecture, ADRs, security, environment reference                                          |
 
 ## Commands
 
@@ -96,6 +97,9 @@ Flutter: `cd apps/mobile && flutter analyze && flutter test`.
   phone number exists.
 - Use the Nest `Logger`, never `console.log` (ESLint enforces this). Log errors with
   `describeError(error)` (class and code only) — never `error.message`, which can quote data.
+- Server configuration lives in `deploy/`; secrets only in root-only files on the server
+  (`deploy/env/*.example` are placeholders). Never add a secret to an image, workflow or
+  compose file. A new API variable also goes into `deploy/env/api.env.example`.
 - Security documents (threat model, runbooks, scanning) live in `docs/security/`; update the
   threat model when adding a trust boundary, datastore or authentication path.
 - Conventional commits: `feat(api): ...`, `fix(web): ...`, `chore: ...`.

@@ -27,20 +27,22 @@ Every variable the platform reads. Real values are **never** committed — only 
 The API refuses to start if any value is invalid. Error messages name the variable but
 never print its value.
 
-| Variable                | Required | Default                  | Description                                                                                                                           |
-| ----------------------- | -------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`              | no       | `development`            | `development`, `test` or `production`                                                                                                 |
-| `API_PORT`              | no       | `4000`                   | HTTP port                                                                                                                             |
-| `API_GLOBAL_PREFIX`     | no       | `api`                    | Route prefix → `/api/v1/...`                                                                                                          |
-| `CORS_ORIGINS`          | no       | `http://localhost:3000`  | Comma-separated browser origins allowed to call the API                                                                               |
-| `WEB_APP_URL`           | no       | `http://localhost:3000`  | Public web-app URL; staff invitation links point to `/invite` on it                                                                   |
-| `SWAGGER_ENABLED`       | no       | `true` unless production | Serve Swagger UI at `/{prefix}/docs`                                                                                                  |
-| `THROTTLE_TTL_MS`       | no       | `60000`                  | Rate-limit window in ms                                                                                                               |
-| `THROTTLE_LIMIT`        | no       | `120`                    | Requests allowed per window per client                                                                                                |
-| `DATABASE_URL`          | **yes**  | —                        | `postgresql://…?schema=kenisha` logging in as **`kenisha_app`**. Readiness fails (503) for any role that can bypass RLS               |
-| `PLATFORM_DATABASE_URL` | **yes**  | —                        | `postgresql://…?schema=kenisha` logging in as **`kenisha_platform`** (Super Admin endpoints). Readiness fails if it is any other role |
-| `DATABASE_POOL_MAX`     | no       | `10`                     | Maximum pooled database connections                                                                                                   |
-| `REDIS_URL`             | no       | —                        | `redis://` or `rediss://` URL (not used yet)                                                                                          |
+| Variable                | Required      | Default                  | Description                                                                                                                                                                  |
+| ----------------------- | ------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`              | no            | `development`            | `development`, `test` or `production`                                                                                                                                        |
+| `API_PORT`              | no            | `4000`                   | HTTP port                                                                                                                                                                    |
+| `API_GLOBAL_PREFIX`     | no            | `api`                    | Route prefix → `/api/v1/...`                                                                                                                                                 |
+| `CORS_ORIGINS`          | no            | `http://localhost:3000`  | Comma-separated browser origins allowed to call the API                                                                                                                      |
+| `WEB_APP_URL`           | no            | `http://localhost:3000`  | Public web-app URL; staff invitation links point to `/invite` on it                                                                                                          |
+| `SWAGGER_ENABLED`       | no            | `true` unless production | Serve Swagger UI at `/{prefix}/docs`                                                                                                                                         |
+| `THROTTLE_TTL_MS`       | no            | `60000`                  | Rate-limit window in ms                                                                                                                                                      |
+| `THROTTLE_LIMIT`        | no            | `120`                    | Requests allowed per window per client                                                                                                                                       |
+| `DATABASE_URL`          | **yes**       | —                        | `postgresql://…?schema=kenisha` logging in as **`kenisha_app`**. Readiness fails (503) for any role that can bypass RLS                                                      |
+| `PLATFORM_DATABASE_URL` | **yes**       | —                        | `postgresql://…?schema=kenisha` logging in as **`kenisha_platform`** (Super Admin endpoints). Readiness fails if it is any other role                                        |
+| `DATABASE_POOL_MAX`     | no            | `10`                     | Maximum pooled database connections                                                                                                                                          |
+| `REDIS_URL`             | prod: **yes** | —                        | `redis://` or `rediss://` URL for shared rate-limit counters (ADR-0006). Required when `NODE_ENV=production`; without it limits are per process                              |
+| `DEPLOYMENT_ENV`        | prod: **yes** | `local`                  | `local`, `staging` or `production`. Required (not `local`) when `NODE_ENV=production`; only `staging` may use `SMS_PROVIDER=development` on a server                         |
+| `TRUST_PROXY_HOPS`      | no            | `0`                      | Reverse proxies in front of the API whose `X-Forwarded-For` is trusted. The server stack sets `1` (Caddy); never set it without a proxy, or clients could fake their address |
 
 ### API authentication (ADR-0003)
 
@@ -55,7 +57,7 @@ Generate the four secrets with `pnpm --filter @kenisha/api auth:secrets`. All ar
 | `JWT_PREVIOUS_PUBLIC_KEY`    | no       | —             | Only during a JWT key rotation: the previous public key, so tokens signed before the switch stay valid until they expire                  |
 | `PLATFORM_TOTP_KEY_PREVIOUS` | no       | —             | Only during a `PLATFORM_TOTP_KEY` rotation: the previous key, until `platform:reseal-totp` has re-encrypted every secret. **Secret**      |
 | `OTP_HMAC_SECRET`            | **yes**  | —             | ≥ 32 chars; one-time codes are stored only as HMACs keyed with it. **Secret**                                                             |
-| `SMS_PROVIDER`               | **yes**  | —             | `development` only for now (codes go to the API log; refused outside dev/test)                                                            |
+| `SMS_PROVIDER`               | **yes**  | —             | `development` only for now (codes go to the API log): allowed locally and on staging, never when `DEPLOYMENT_ENV=production`              |
 | `JWT_ISSUER`                 | no       | `kenisha-api` | `iss` claim of access tokens                                                                                                              |
 | `ACCESS_TOKEN_TTL_SECONDS`   | no       | `900`         | Access-token lifetime (60–3600)                                                                                                           |
 | `AUTH_COOKIE_SECURE`         | no       | `true`        | `Secure` flag on the web refresh cookie (browsers accept it on `http://localhost`)                                                        |
@@ -92,10 +94,26 @@ database; they never touch `kenisha_dev`.
 
 `NEXT_PUBLIC_*` values are compiled into browser JavaScript and are **public**.
 
-| Variable              | Exposure    | Default                 | Description                            |
-| --------------------- | ----------- | ----------------------- | -------------------------------------- |
-| `API_INTERNAL_URL`    | server only | `http://localhost:4000` | API base URL used by server components |
-| `NEXT_PUBLIC_API_URL` | **public**  | —                       | API base URL used from the browser     |
+| Variable              | Exposure    | Default                 | Description                                                                                                                                         |
+| --------------------- | ----------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_INTERNAL_URL`    | server only | `http://localhost:4000` | API base URL used by server components                                                                                                              |
+| `NEXT_PUBLIC_API_URL` | **public**  | `http://localhost:4000` | API base URL used from the browser, fixed at build time. Empty in the production images: the API is served on the web app's own origin under `/api` |
+| `NEXT_OUTPUT`         | build only  | —                       | `standalone` inside the production image build (needs symlinks; leave unset on Windows)                                                             |
+
+## Servers (`/etc/kenisha/*.env`, `/opt/kenisha/release.env`)
+
+Templates with placeholders are in [`deploy/env/`](../deploy/env); how to fill them in is in
+the [server build runbook](security/runbooks/server-build.md).
+
+| File                                          | Holds                                                                        | Secret    |
+| --------------------------------------------- | ---------------------------------------------------------------------------- | --------- |
+| `/etc/kenisha/api.env`                        | The API variables above, with production values                              | yes       |
+| `/etc/kenisha/migrate.env`                    | `MIGRATION_DATABASE_URL` for the one-off migration job                       | yes       |
+| `/etc/kenisha/postgres.env`                   | Superuser, database name, `PGBACKREST_REPO1_CIPHER_PASS` (backup encryption) | yes       |
+| `/etc/kenisha/redis.env`                      | `REDIS_PASSWORD`                                                             | yes       |
+| `/opt/kenisha/release.env`                    | Host names, ACME email, and the image digests of the running release         | no        |
+| `/opt/kenisha/registry.env`                   | `REGISTRY=ghcr.io/<owner>`                                                   | no        |
+| `/etc/kenisha-backup/backup.env` (backup VPS) | `APP_HOST`, `SSH_KEY`, `POSTGRES_IMAGE`, `CIPHER_FILE`                       | path only |
 
 ## Mobile (`--dart-define`)
 

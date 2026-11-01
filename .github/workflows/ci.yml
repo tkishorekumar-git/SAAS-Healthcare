@@ -34,8 +34,18 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     env:
+      KENISHA_TEST_REDIS_URL: redis://localhost:6379/0
       DATABASE_ADMIN_URL: postgresql://ci_admin:ci-admin-password@localhost:5432/kenisha_ci
       MIGRATION_DATABASE_URL: postgresql://kenisha_migrator:ci-migrator-password@localhost:5432/kenisha_ci?schema=kenisha
       APP_DATABASE_URL: postgresql://kenisha_app:ci-app-password-1@localhost:5432/kenisha_ci?schema=kenisha
@@ -73,7 +83,7 @@ jobs:
       - name: Database — tenant isolation tests (RLS)
         run: pnpm test:db
 
-      - name: API — login, session and permission flows against PostgreSQL
+      - name: API — login, session and permission flows against PostgreSQL and Redis
         run: pnpm test:e2e:db
 
   security:

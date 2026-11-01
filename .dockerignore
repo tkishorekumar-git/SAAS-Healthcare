@@ -1,0 +1,17 @@
+# Keep build contexts small and free of secrets (ADR-0006).
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+.git
+.github
+.claude
+docs
+apps/mobile
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key

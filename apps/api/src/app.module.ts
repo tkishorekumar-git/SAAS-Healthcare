@@ -6,12 +6,13 @@ import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard, PermissionsGuard } from './auth/guards';
 import { BranchesModule } from './branches/branches.module';
-import { type Env, validateEnv } from './config/env.validation';
+import { validateEnv } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
 import { StaffModule } from './staff/staff.module';
 import { TenancyModule } from './tenancy/tenancy.module';
+import { throttlerOptions } from './throttling/throttler.config';
 
 @Module({
   imports: [
@@ -23,12 +24,7 @@ import { TenancyModule } from './tenancy/tenancy.module';
     }),
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) => [
-        {
-          ttl: config.get('THROTTLE_TTL_MS', { infer: true }),
-          limit: config.get('THROTTLE_LIMIT', { infer: true }),
-        },
-      ],
+      useFactory: throttlerOptions,
     }),
     DatabaseModule,
     AuditModule,

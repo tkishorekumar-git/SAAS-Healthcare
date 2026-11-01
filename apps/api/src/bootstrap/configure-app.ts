@@ -18,6 +18,12 @@ import { SafeExceptionFilter } from './safe-exception.filter';
  * exercise exactly the same security headers, validation and routing as production.
  */
 export function configureApp(app: INestApplication, config: ConfigService<Env, true>): void {
+  // Behind Caddy the socket peer is the proxy; trust exactly its hops so rate limits and
+  // audit logs see the client's address, and clients cannot spoof X-Forwarded-For.
+  const proxyHops = config.get('TRUST_PROXY_HOPS', { infer: true });
+  if (proxyHops > 0) {
+    (app as NestExpressApplication).set('trust proxy', proxyHops);
+  }
   app.use(helmet());
   // JSON body parser registered here (Nest then skips its own) so that parse errors can be
   // replaced right away: Node's JSON.parse messages quote part of the request body.

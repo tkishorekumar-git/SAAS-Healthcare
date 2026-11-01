@@ -2,19 +2,19 @@
 
 Each milestone ends with a review and explicit approval before the next one starts.
 
-| #   | Milestone                                                                                                                                                                                                     | Status                                  |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| 1   | **Monorepo foundation** — apps, shared packages, tooling, Docker dev env, CI, docs                                                                                                                            | ✅ Complete                             |
-| 2   | **Database foundation** — Prisma, tenancy tables (tenants, branches, subscriptions), RLS, migrations, synthetic seed, readiness check                                                                         | ✅ Complete                             |
-| 3a  | **Identity & access (hospital users)** — hospital-first login, patient SMS-code login, staff password + SMS factor, sessions, permissions, branch scope, audit log                                            | ✅ Complete                             |
-| 3b  | **Identity & access (platform)** — Super Admin login with authenticator app, break-glass support access                                                                                                       | ✅ Complete                             |
-| 4a  | **Tenant administration (API)** — onboarding, SMS staff invitations, staff/branch management, settings, plan limits, suspension                                                                               | ✅ Complete                             |
-| 4b  | **Tenant administration (web)** — first admin web screens: sign-in, invitation acceptance, Hospital Admin and Super Admin consoles                                                                            | ✅ Complete                             |
-| 5a  | **Security review (code & process)** — threat model, route inventory, API cross-tenant tests, PHI canaries, CI scanning, runbooks ([ADR-0005](architecture/adr/0005-security-review-gate.md))                 | ✅ Complete                             |
-| 5b  | **Production deployment** — staging VPS, Dockerfiles, Caddy/TLS, Redis rate limits, pgBackRest to a backup VPS with restore test, image scanning ([ADR-0006](architecture/adr/0006-production-deployment.md)) | Planned (required before clinical work) |
-| 6   | **Patient registry** — patients, guardians, consent, shared clinical foundations                                                                                                                              | Planned                                 |
-| 7+  | Clinical modules — Hospital Management, Chronic Care, Maternal, Pediatric                                                                                                                                     | Planned                                 |
-| —   | **Deployment** — production Dockerfiles, Caddy, Hostinger VPS, automated backups, monitoring                                                                                                                  | Now Milestone 5b                        |
+| #   | Milestone                                                                                                                                                                                                     | Status           |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| 1   | **Monorepo foundation** — apps, shared packages, tooling, Docker dev env, CI, docs                                                                                                                            | ✅ Complete      |
+| 2   | **Database foundation** — Prisma, tenancy tables (tenants, branches, subscriptions), RLS, migrations, synthetic seed, readiness check                                                                         | ✅ Complete      |
+| 3a  | **Identity & access (hospital users)** — hospital-first login, patient SMS-code login, staff password + SMS factor, sessions, permissions, branch scope, audit log                                            | ✅ Complete      |
+| 3b  | **Identity & access (platform)** — Super Admin login with authenticator app, break-glass support access                                                                                                       | ✅ Complete      |
+| 4a  | **Tenant administration (API)** — onboarding, SMS staff invitations, staff/branch management, settings, plan limits, suspension                                                                               | ✅ Complete      |
+| 4b  | **Tenant administration (web)** — first admin web screens: sign-in, invitation acceptance, Hospital Admin and Super Admin consoles                                                                            | ✅ Complete      |
+| 5a  | **Security review (code & process)** — threat model, route inventory, API cross-tenant tests, PHI canaries, CI scanning, runbooks ([ADR-0005](architecture/adr/0005-security-review-gate.md))                 | ✅ Complete      |
+| 5b  | **Production deployment** — staging VPS, Dockerfiles, Caddy/TLS, Redis rate limits, pgBackRest to a backup VPS with restore test, image scanning ([ADR-0006](architecture/adr/0006-production-deployment.md)) | Ready for review |
+| 6   | **Patient registry** — patients, guardians, consent, shared clinical foundations                                                                                                                              | Planned          |
+| 7+  | Clinical modules — Hospital Management, Chronic Care, Maternal, Pediatric                                                                                                                                     | Planned          |
+| —   | **Deployment** — production Dockerfiles, Caddy, Hostinger VPS, automated backups, monitoring                                                                                                                  | Now Milestone 5b |
 
 ## Milestone 2 deliverables
 
@@ -100,3 +100,18 @@ Each milestone ends with a review and explicit approval before the next one star
   authentication data (database-enforced retention).
 - CI security job: gitleaks (full history), OSV-Scanner (npm and Dart), Semgrep.
 - Invitation token removed from the browser address bar.
+
+## Milestone 5b deliverables
+
+- Production images (API, web, migration job, PostgreSQL with pgBackRest): non-root,
+  read-only, scanned with Trivy, pushed to GHCR per commit; releases pinned by digest.
+- Server stack (Docker Compose) behind Caddy: TLS 1.2/1.3, HSTS, same-origin API for the web
+  app, proxy logs without query strings or headers; PostgreSQL and Redis on an internal network.
+- Nonce-based Content-Security-Policy; rate limits shared through Redis; trusted proxy hop
+  setting; `DEPLOYMENT_ENV` keeps the SMS stub out of production.
+- Deploy workflow with required approval and a forced-command SSH key; `deploy.sh` migrates,
+  checks readiness and rolls back on failure.
+- Continuous encrypted backups pulled by a separate backup VPS, hourly/daily/monthly
+  snapshots, monthly automated restore test.
+- Runbooks: server build, backup/restore and disaster recovery; threat model, ASVS review
+  and security checklist updated.

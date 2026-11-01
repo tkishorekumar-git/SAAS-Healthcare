@@ -12,7 +12,10 @@ import { DevelopmentSmsProvider, SMS_PROVIDER } from './sms.provider';
       useFactory: (config: ConfigService<Env, true>) => {
         switch (config.get('SMS_PROVIDER', { infer: true })) {
           case 'development':
-            return new DevelopmentSmsProvider(config.get('NODE_ENV', { infer: true }));
+            return new DevelopmentSmsProvider(
+              config.get('NODE_ENV', { infer: true }),
+              config.get('DEPLOYMENT_ENV', { infer: true }),
+            );
         }
       },
     },

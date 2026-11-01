@@ -11,7 +11,7 @@ paths = [
   # Throwaway credentials that exist only inside the ephemeral CI database container.
   '''^\.github/workflows/ci\.yml$''',
   # Placeholders only (never real values).
-  '''(^|/)\.env\.example$''',
+  '''\.env\.example$''',
   # Tests: synthetic passwords and keys only (CLAUDE.md rule 7); test secrets are generated
   # at run time (apps/api/test/support/auth-env.ts).
   '''\.(spec|e2e-spec|e2e-db-spec|int\.test|test)\.tsx?$''',

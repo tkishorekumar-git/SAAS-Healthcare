@@ -25,12 +25,15 @@ starting point.
 
 ### Consequences of P2 (backup VPS)
 
-- The backup VPS **pulls** backups: it is the pgBackRest repository host and connects to the
-  application server, never the other way round. A compromised application server has no
-  credentials to reach, change or delete its backups.
-- Backups are encrypted by pgBackRest (repository encryption, AES-256) before they are
-  written; the passphrase is kept on the backup VPS and offline, never on the application
-  server.
+- The backup VPS **pulls** backups: it connects to the application server with a key that
+  can only read the pgBackRest repository (`rrsync -ro`), never the other way round. A
+  compromised application server has no credentials to reach, change or delete the
+  off-site copies, and hard-link snapshots keep older versions even if the source is wiped.
+- Backups are encrypted by pgBackRest (repository encryption, AES-256) **on the application
+  server**, before they are written — PostgreSQL archives every WAL segment there, so the
+  passphrase must be present there. It is also kept on the backup VPS (restore tests) and
+  offline. (The first draft said "never on the application server"; that is not possible
+  with continuous archiving and was corrected during implementation.)
 - The backup VPS accepts SSH only from the operator and has no public services.
 - **Accepted risk:** both servers are at the same provider; an account-level incident at
   Hostinger could affect both. Before the first real hospital, add a periodic encrypted copy
@@ -44,8 +47,9 @@ Internet ──► Caddy :443 (automatic TLS, HSTS, CSP, request limits)
                └── api.<domain>  ──► api  (NestJS, non-root, read-only FS)
                                        ├── postgres 18 (private network, encrypted volume)
                                        └── redis 7.4   (private network, password, no persistence of PHI)
+               local pgBackRest repository (encrypted) ◄── WAL + full/diff backups
                                        ▲
-               backup VPS (pgBackRest repository) pulls over SSH, encrypts, keeps history
+               backup VPS pulls it read-only over SSH every 5 minutes, keeps snapshots
 ```
 
 - Hostinger KVM VPS in an **India** data centre (ADR-0002 D4); Ubuntu LTS. Staging uses
@@ -90,6 +94,37 @@ Internet ──► Caddy :443 (automatic TLS, HSTS, CSP, request limits)
 - Server build runbook (from a fresh VPS to running, reproducible).
 - Backup and restore runbook, including a full disaster-recovery drill.
 - Update the threat model (infrastructure rows) and the security checklist.
+
+## Implementation notes (Milestone 5b, 2026-11-01)
+
+- **Same-origin API for the web app:** Caddy serves the API under `/api` on the web app's
+  own host (`staging-app.<domain>/api/...`), and on `staging-api.<domain>` for the Android
+  app. Browsers make no cross-origin calls, the CSP stays `connect-src 'self'`, and one web
+  image works in every environment (`NEXT_PUBLIC_API_URL` is empty in the image).
+- **`DEPLOYMENT_ENV` (`local` / `staging` / `production`):** the development SMS stub is
+  allowed on staging (synthetic data, login codes in the API log) and refused when
+  `DEPLOYMENT_ENV=production`. `NODE_ENV=production` requires a named deployment and
+  `REDIS_URL`.
+- **`TRUST_PROXY_HOPS`:** behind Caddy the API trusts exactly one proxy hop, so rate limits
+  and audit logs see client addresses (otherwise every request would share Caddy's IP and
+  one per-IP limit). Without a proxy it stays 0, so clients cannot fake their address.
+- **Rate limits:** own Redis store (`src/throttling/`), one atomic Lua script per request;
+  allows requests and logs a warning if Redis is down (lockout stays in PostgreSQL).
+  Unit-tested, and tested against a real Redis in CI.
+- **CSP:** nonce per request (`apps/web/src/middleware.ts`), `'strict-dynamic'`, no
+  `'unsafe-inline'` for scripts; inline style attributes allowed. Every page now renders per
+  request. Checked in a browser on the production build: all scripts carry the nonce, no
+  violations, and an injected inline event handler does not run.
+- **Images:** one multi-target `deploy/docker/Dockerfile`; base images pinned by tag, and
+  each release is recorded by image **digest** in `release.env` (not base-image digests,
+  which need Docker to look up). `pnpm deploy --prod` builds the API package; tested
+  locally by starting the pruned package against PostgreSQL. `standalone` web output is
+  enabled only inside the image build (`NEXT_OUTPUT`), because it needs symlinks that
+  Windows development machines may not allow.
+- **Not runnable on the development machine** (no Docker, no Linux): image builds, Trivy,
+  Caddy validation, compose validation and ShellCheck run in the new **Images** workflow;
+  backups, restore tests and TLS are proved on the first server build
+  ([server-build.md](../../security/runbooks/server-build.md)).
 
 ## Out of scope
 

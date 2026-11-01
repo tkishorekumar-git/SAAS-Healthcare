@@ -124,6 +124,28 @@ list until refreshed with `passwords:update`; per-IP rate limits are per process
 (5b); Super Admin new-device alerts need an email provider; the ASVS review is chapter-level
 (requirement-level before the independent pen test).
 
+## Already in place (Milestone 5b)
+
+Server build and backups: [deployment.md](deployment.md),
+[server-build.md](security/runbooks/server-build.md),
+[backup-restore.md](security/runbooks/backup-restore.md).
+
+- Caddy terminates TLS 1.2/1.3 with automatic certificates and HSTS; proxy logs drop query
+  strings and headers.
+- Nonce-based Content-Security-Policy on every page (no inline scripts, no framing).
+- Rate limits shared through Redis; the API trusts exactly one proxy hop behind Caddy.
+- Containers run non-root, read-only, without capabilities; PostgreSQL and Redis are on an
+  internal network; data lives on a LUKS-encrypted volume.
+- Images are scanned with Trivy and every release is pinned by image digest; deployments
+  need approval in GitHub and the server accepts only a commit SHA.
+- Continuous encrypted backups (pgBackRest), pulled read-only by a separate backup VPS
+  with hourly/daily/monthly snapshots, and a monthly automated restore test.
+- The development SMS stub can never run in the production deployment.
+
+**Known limitations (5b):** nothing has run on a real server yet — TLS grade, the encrypted
+volume and the first restore test are proved during the first server build; no upstream
+DDoS protection; both VPSes are at one provider (ADR-0006 accepted risk).
+
 ## Pre-clinical security review checklist (Milestone 5 gate)
 
 Evidence for each item is in the [threat model](security/threat-model.md) and the
@@ -142,13 +164,16 @@ deployment; items marked _M6_ are design requirements for the first clinical mil
       sign-in events are audited today)
 - [x] No PHI in logs, URLs, error responses — canary test and error filter (analytics and
       crash reporting do not exist yet; any future one needs a PHI review)
-- [ ] Encryption in transit (TLS 1.2+, HSTS) and at rest (disk + backups) — _5b_
+- [x] Encryption in transit (TLS 1.2+, HSTS) and at rest (disk + backups) — built in 5b;
+      proved at the first server build (SSL Labs grade, LUKS volume)
 - [x] Field-level encryption decision for highly sensitive fields — ADR-0005 S2 (implemented
       in _M6_)
-- [ ] Backups encrypted, off-site, restore tested — _5b_
+- [x] Backups encrypted, off-site, restore tested — pgBackRest + backup VPS + monthly
+      `restore-test.sh`; first `PASS` recorded at the first server build
 - [x] Secrets rotation procedure documented —
-      [secret-rotation.md](security/runbooks/secret-rotation.md); secret store on the server — _5b_
-- [ ] Dependency and container image scanning in CI — dependencies done (OSV); images _5b_
+      [secret-rotation.md](security/runbooks/secret-rotation.md); root-only secret files on the
+      server, never in images or git
+- [x] Dependency and container image scanning in CI — OSV-Scanner and Trivy
 - [x] Secret scanning (gitleaks) in CI; optional pre-commit hook documented
 - [ ] Mobile: secure storage for tokens, no secrets in APK, release builds HTTPS-only — no
       secrets today; the rest is a gate on the Android login milestone

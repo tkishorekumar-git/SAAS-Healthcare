@@ -4,6 +4,10 @@
   "private": true,
   "license": "UNLICENSED",
   "description": "Kenisha Healthcare REST API (NestJS)",
+  "files": [
+    "dist",
+    "data"
+  ],
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
@@ -34,6 +38,7 @@
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
     "helmet": "^8.1.0",
+    "ioredis": "^5.11.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^4.1.11"

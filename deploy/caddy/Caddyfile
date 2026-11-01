@@ -1,0 +1,82 @@
+# Kenisha edge proxy (ADR-0006). Hosts come from /opt/kenisha/release.env, for example
+#   KENISHA_APP_HOST=staging-app.example.in   KENISHA_API_HOST=staging-api.example.in
+# Caddy obtains and renews TLS certificates automatically and redirects HTTP to HTTPS.
+{
+	email {$ACME_EMAIL}
+	# Only TLS 1.2 and 1.3 (Caddy's defaults are already modern; stated for the record).
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		-Server
+		-X-Powered-By
+	}
+}
+
+(tls_policy) {
+	tls {
+		protocols tls1.2 tls1.3
+	}
+}
+
+(proxy_limits) {
+	request_body {
+		max_size 1MB
+	}
+}
+
+# Web app; the API is served on the same origin under /api, so browsers never make
+# cross-origin calls and the Content-Security-Policy stays connect-src 'self'.
+{$KENISHA_APP_HOST} {
+	import tls_policy
+	import security_headers
+	import proxy_limits
+	encode zstd gzip
+
+	handle /api/* {
+		# Swagger UI is for development only.
+		@docs path /api/docs /api/docs/*
+		respond @docs 404
+		reverse_proxy api:4000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+	log {
+		output stdout
+		# Paths and status only: query strings and headers can carry tokens.
+		format filter {
+			fields {
+				request>uri regexp "[?].*" "?redacted"
+				request>headers delete
+				resp_headers delete
+			}
+		}
+	}
+}
+
+# API for the Android app.
+{$KENISHA_API_HOST} {
+	import tls_policy
+	import security_headers
+	import proxy_limits
+
+	@docs path /api/docs /api/docs/*
+	respond @docs 404
+	reverse_proxy api:4000
+	log {
+		output stdout
+		format filter {
+			fields {
+				request>uri regexp "[?].*" "?redacted"
+				request>headers delete
+				resp_headers delete
+			}
+		}
+	}
+}

@@ -13,15 +13,19 @@ export interface SmsProvider {
 
 /**
  * Writes messages to the API log instead of sending SMS. Refuses to exist outside
- * development and test, so a misconfigured production server fails at startup.
+ * development, test and the staging deployment (synthetic data only, ADR-0006), so a
+ * misconfigured production server fails at startup.
  */
 export class DevelopmentSmsProvider implements SmsProvider {
   private readonly logger = new Logger('DevelopmentSms');
 
-  constructor(nodeEnv: string) {
-    if (nodeEnv !== 'development' && nodeEnv !== 'test') {
+  constructor(nodeEnv: string, deploymentEnv: string = 'local') {
+    const allowed =
+      deploymentEnv === 'staging' ||
+      (deploymentEnv === 'local' && (nodeEnv === 'development' || nodeEnv === 'test'));
+    if (!allowed) {
       throw new Error(
-        'SMS_PROVIDER=development is only allowed when NODE_ENV is development or test',
+        'SMS_PROVIDER=development is only allowed locally (development/test) or on staging',
       );
     }
   }

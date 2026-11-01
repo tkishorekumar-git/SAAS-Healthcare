@@ -1,0 +1,142 @@
+# Kenisha server stack (ADR-0006): one VPS per environment (staging now, production later).
+#
+#   /opt/kenisha/compose.yml      this file
+#   /opt/kenisha/release.env      image references of the running release (deploy.sh)
+#   /etc/kenisha/*.env            secrets, root-only (0600), never in git or images
+#   /srv/kenisha/                 data on the LUKS-encrypted volume
+#
+# Only Caddy publishes ports. PostgreSQL and Redis sit on an internal network with no
+# route to the internet.
+
+name: kenisha
+
+x-hardened: &hardened
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ['no-new-privileges:true']
+  logging:
+    driver: json-file
+    options: { max-size: '10m', max-file: '5' }
+
+services:
+  caddy:
+    <<: *hardened
+    image: caddy:2.10-alpine
+    cap_add: [NET_BIND_SERVICE]
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      KENISHA_DOMAIN: ${KENISHA_DOMAIN:?set in /opt/kenisha/release.env}
+      KENISHA_APP_HOST: ${KENISHA_APP_HOST:?set in /opt/kenisha/release.env}
+      KENISHA_API_HOST: ${KENISHA_API_HOST:?set in /opt/kenisha/release.env}
+      ACME_EMAIL: ${ACME_EMAIL:?set in /opt/kenisha/release.env}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /srv/kenisha/caddy/data:/data
+      - /srv/kenisha/caddy/config:/config
+    tmpfs: [/tmp]
+    networks: [edge]
+    depends_on:
+      web: { condition: service_healthy }
+      api: { condition: service_healthy }
+
+  web:
+    <<: *hardened
+    image: ${WEB_IMAGE:?set by deploy.sh}
+    environment:
+      API_INTERNAL_URL: http://api:4000
+    tmpfs:
+      - /tmp
+      - /app/apps/web/.next/cache
+    networks: [edge]
+
+  api:
+    <<: *hardened
+    image: ${API_IMAGE:?set by deploy.sh}
+    env_file: /etc/kenisha/api.env
+    environment:
+      # Caddy is the single proxy in front of the API.
+      TRUST_PROXY_HOPS: '1'
+    tmpfs: [/tmp]
+    networks: [edge, internal]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  # One-off: `docker compose run --rm migrate` (deploy.sh). Never left running.
+  migrate:
+    image: ${MIGRATE_IMAGE:?set by deploy.sh}
+    profiles: [tools]
+    env_file: /etc/kenisha/migrate.env
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    tmpfs: [/tmp]
+    networks: [internal]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  postgres:
+    image: ${POSTGRES_IMAGE:?set by deploy.sh}
+    restart: unless-stopped
+    shm_size: 256m
+    env_file: /etc/kenisha/postgres.env
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      # Every completed WAL segment goes to the local pgBackRest repository at once.
+      - -c
+      - archive_command=pgbackrest --stanza=kenisha archive-push %p
+      - -c
+      - archive_timeout=300
+      - -c
+      - max_wal_senders=3
+      - -c
+      - password_encryption=scram-sha-256
+      - -c
+      - log_connections=on
+      - -c
+      - log_disconnections=on
+      # Statements are never logged: they could carry patient data.
+      - -c
+      - log_statement=none
+    volumes:
+      - /srv/kenisha/postgres:/var/lib/postgresql
+      - /srv/kenisha/pgbackrest:/var/lib/pgbackrest
+    networks: [internal]
+    security_opt: ['no-new-privileges:true']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '5' }
+
+  redis:
+    <<: *hardened
+    image: redis:7.4-alpine
+    env_file: /etc/kenisha/redis.env
+    # Rate-limit counters only: nothing is written to disk.
+    command:
+      - sh
+      - -c
+      - exec redis-server --requirepass "$$REDIS_PASSWORD" --save '' --appendonly no
+    networks: [internal]
+    healthcheck:
+      test: ['CMD-SHELL', 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+networks:
+  edge: {}
+  internal:
+    internal: true

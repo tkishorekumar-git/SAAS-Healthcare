@@ -11,7 +11,7 @@ build.
 | Dependencies (npm)  | OSV-Scanner v1.9.2 | `pnpm-lock.yaml`                            | [`osv-scanner.toml`](../../osv-scanner.toml) |
 | Dependencies (Dart) | OSV-Scanner v1.9.2 | `apps/mobile/pubspec.lock` (Flutter job)    | same                                         |
 | Code                | Semgrep CE 1.95.0  | TypeScript, Node, React, secrets rule packs | [`.semgrepignore`](../../.semgrepignore)     |
-| Container images    | Trivy              | Production images                           | Milestone 5b                                 |
+| Container images    | Trivy 0.57.1       | All four production images (`images.yml`)   | high/critical with a fix available fail      |
 
 Dependabot (weekly) proposes updates for npm, pub and GitHub Actions.
 
