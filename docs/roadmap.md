@@ -2,18 +2,19 @@
 
 Each milestone ends with a review and explicit approval before the next one starts.
 
-| #   | Milestone                                                                                                                                                          | Status                                  |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
-| 1   | **Monorepo foundation** — apps, shared packages, tooling, Docker dev env, CI, docs                                                                                 | ✅ Complete                             |
-| 2   | **Database foundation** — Prisma, tenancy tables (tenants, branches, subscriptions), RLS, migrations, synthetic seed, readiness check                              | ✅ Complete                             |
-| 3a  | **Identity & access (hospital users)** — hospital-first login, patient SMS-code login, staff password + SMS factor, sessions, permissions, branch scope, audit log | ✅ Complete                             |
-| 3b  | **Identity & access (platform)** — Super Admin login with authenticator app, break-glass support access                                                            | ✅ Complete                             |
-| 4a  | **Tenant administration (API)** — onboarding, SMS staff invitations, staff/branch management, settings, plan limits, suspension                                    | ✅ Complete                             |
-| 4b  | **Tenant administration (web)** — first admin web screens: sign-in, invitation acceptance, Hospital Admin and Super Admin consoles                                 | ✅ Complete                             |
-| 5   | **Security review gate** — threat model, pen-test checklist, logging/PHI review                                                                                    | Planned (required before clinical work) |
-| 6   | **Patient registry** — patients, guardians, consent, shared clinical foundations                                                                                   | Planned                                 |
-| 7+  | Clinical modules — Hospital Management, Chronic Care, Maternal, Pediatric                                                                                          | Planned                                 |
-| —   | **Deployment** — production Dockerfiles, Caddy, Hostinger VPS, automated backups, monitoring                                                                       | Scheduled alongside milestones 3–5      |
+| #   | Milestone                                                                                                                                                                                     | Status                                  |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| 1   | **Monorepo foundation** — apps, shared packages, tooling, Docker dev env, CI, docs                                                                                                            | ✅ Complete                             |
+| 2   | **Database foundation** — Prisma, tenancy tables (tenants, branches, subscriptions), RLS, migrations, synthetic seed, readiness check                                                         | ✅ Complete                             |
+| 3a  | **Identity & access (hospital users)** — hospital-first login, patient SMS-code login, staff password + SMS factor, sessions, permissions, branch scope, audit log                            | ✅ Complete                             |
+| 3b  | **Identity & access (platform)** — Super Admin login with authenticator app, break-glass support access                                                                                       | ✅ Complete                             |
+| 4a  | **Tenant administration (API)** — onboarding, SMS staff invitations, staff/branch management, settings, plan limits, suspension                                                               | ✅ Complete                             |
+| 4b  | **Tenant administration (web)** — first admin web screens: sign-in, invitation acceptance, Hospital Admin and Super Admin consoles                                                            | ✅ Complete                             |
+| 5a  | **Security review (code & process)** — threat model, route inventory, API cross-tenant tests, PHI canaries, CI scanning, runbooks ([ADR-0005](architecture/adr/0005-security-review-gate.md)) | Planned (required before clinical work) |
+| 5b  | **Production deployment** — Dockerfiles, Caddy/TLS, Redis rate limits, encrypted off-site backups with restore test, image scanning                                                           | Planned (required before clinical work) |
+| 6   | **Patient registry** — patients, guardians, consent, shared clinical foundations                                                                                                              | Planned                                 |
+| 7+  | Clinical modules — Hospital Management, Chronic Care, Maternal, Pediatric                                                                                                                     | Planned                                 |
+| —   | **Deployment** — production Dockerfiles, Caddy, Hostinger VPS, automated backups, monitoring                                                                                                  | Now Milestone 5b                        |
 
 ## Milestone 2 deliverables
 
