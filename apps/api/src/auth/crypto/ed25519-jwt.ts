@@ -1,4 +1,11 @@
-import { type KeyObject, createPrivateKey, createPublicKey, sign, verify } from 'node:crypto';
+import {
+  type KeyObject,
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  sign,
+  verify,
+} from 'node:crypto';
 
 /**
  * Minimal JWT (RFC 7519) signer/verifier for Ed25519 using only Node's crypto module.
@@ -12,7 +19,33 @@ export class InvalidTokenError extends Error {
   }
 }
 
-const HEADER = Buffer.from(JSON.stringify({ alg: 'EdDSA', typ: 'JWT' })).toString('base64url');
+/** A public key and its ID (`kid` header), so a previous key can verify during rotation. */
+export interface VerificationKey {
+  kid: string;
+  key: KeyObject;
+}
+
+/** Stable ID of a public key: the first 16 characters of the SHA-256 of its SPKI encoding. */
+export function keyId(publicKey: KeyObject): string {
+  return createHash('sha256')
+    .update(publicKey.export({ type: 'spki', format: 'der' }))
+    .digest('base64url')
+    .slice(0, 16);
+}
+
+/** Loads one base64-encoded PEM (SPKI) Ed25519 public key. */
+export function loadEd25519PublicKey(publicKeyBase64: string): KeyObject {
+  let publicKey: KeyObject;
+  try {
+    publicKey = createPublicKey(Buffer.from(publicKeyBase64, 'base64').toString('utf8'));
+  } catch {
+    throw new Error('JWT public key is not a valid base64-encoded PEM key');
+  }
+  if (publicKey.asymmetricKeyType !== 'ed25519') {
+    throw new Error('JWT keys must be Ed25519');
+  }
+  return publicKey;
+}
 
 export interface JwtTimeClaims {
   iss: string;
@@ -40,12 +73,19 @@ export function loadEd25519Keys(
   if (privateKey.asymmetricKeyType !== 'ed25519' || publicKey.asymmetricKeyType !== 'ed25519') {
     throw new Error('JWT keys must be Ed25519');
   }
+  // A half-finished rotation (new private key, old public key) must fail at start-up.
+  if (keyId(createPublicKey(privateKey)) !== keyId(publicKey)) {
+    throw new Error('JWT_PUBLIC_KEY does not belong to JWT_PRIVATE_KEY');
+  }
   return { privateKey, publicKey };
 }
 
-export function signJwt(payload: object, privateKey: KeyObject): string {
+export function signJwt(payload: object, privateKey: KeyObject, kid?: string): string {
+  const header = Buffer.from(
+    JSON.stringify(kid ? { alg: 'EdDSA', typ: 'JWT', kid } : { alg: 'EdDSA', typ: 'JWT' }),
+  ).toString('base64url');
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const signingInput = `${HEADER}.${body}`;
+  const signingInput = `${header}.${body}`;
   const signature = sign(null, Buffer.from(signingInput), privateKey).toString('base64url');
   return `${signingInput}.${signature}`;
 }
@@ -56,9 +96,14 @@ export interface VerifyOptions {
   nowSeconds?: number;
 }
 
+/**
+ * `keys`: one key, or the current key first followed by the previous one during a rotation.
+ * A token naming an unknown `kid` is rejected; a token without `kid` (issued before kids
+ * existed) is checked against the current key only.
+ */
 export function verifyJwt(
   token: string,
-  publicKey: KeyObject,
+  keys: KeyObject | readonly VerificationKey[],
   options: VerifyOptions,
 ): Record<string, unknown> & JwtTimeClaims {
   const parts = token.split('.');
@@ -80,6 +125,7 @@ export function verifyJwt(
   ) {
     throw new InvalidTokenError('unsupported algorithm');
   }
+  const publicKey = selectKey(keys, (parsedHeader as { kid?: unknown }).kid);
 
   const valid = verify(
     null,
@@ -112,4 +158,17 @@ export function verifyJwt(
     throw new InvalidTokenError('issued in the future');
   }
   return claims as Record<string, unknown> & JwtTimeClaims;
+}
+
+function selectKey(keys: KeyObject | readonly VerificationKey[], kid: unknown): KeyObject {
+  if (!Array.isArray(keys)) return keys as KeyObject;
+  const list = keys as readonly VerificationKey[];
+  if (kid === undefined) {
+    const current = list[0];
+    if (!current) throw new InvalidTokenError('no verification key');
+    return current.key;
+  }
+  const match = list.find((entry) => entry.kid === kid);
+  if (!match) throw new InvalidTokenError('unknown key');
+  return match.key;
 }

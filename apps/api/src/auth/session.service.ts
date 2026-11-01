@@ -36,6 +36,8 @@ export interface IssuedSession {
   accessTokenExpiresAt: Date;
   refreshToken: string;
   refreshTokenExpiresAt: Date;
+  /** Staff sign-in only: the device token to keep (ADR-0005). */
+  deviceToken?: string;
 }
 
 const SESSION_EXPIRED = 'Your session has ended. Please log in again.';

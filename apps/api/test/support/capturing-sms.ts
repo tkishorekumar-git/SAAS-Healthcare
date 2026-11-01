@@ -4,6 +4,7 @@ import type { SmsProvider } from '../../src/auth/sms/sms.provider';
 export class CapturingSms implements SmsProvider {
   readonly sent: Array<{ phone: string; code: string }> = [];
   readonly invitations: Array<{ phone: string; hospitalName: string; link: string }> = [];
+  readonly deviceAlerts: Array<{ phone: string; hospitalName: string }> = [];
 
   async sendOneTimeCode(phone: string, code: string): Promise<void> {
     this.sent.push({ phone, code });
@@ -11,6 +12,10 @@ export class CapturingSms implements SmsProvider {
 
   async sendInvitation(phone: string, hospitalName: string, link: string): Promise<void> {
     this.invitations.push({ phone, hospitalName, link });
+  }
+
+  async sendNewDeviceAlert(phone: string, hospitalName: string): Promise<void> {
+    this.deviceAlerts.push({ phone, hospitalName });
   }
 
   lastCodeFor(phone: string): string {

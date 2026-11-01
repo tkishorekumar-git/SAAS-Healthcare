@@ -5,7 +5,15 @@ import { ConfigService } from '@nestjs/config';
 import type { KeyObject } from 'node:crypto';
 import type { Env } from '../config/env.validation';
 import type { AuthContext, PlatformAuthContext } from './auth-context';
-import { InvalidTokenError, loadEd25519Keys, signJwt, verifyJwt } from './crypto/ed25519-jwt';
+import {
+  InvalidTokenError,
+  type VerificationKey,
+  keyId,
+  loadEd25519Keys,
+  loadEd25519PublicKey,
+  signJwt,
+  verifyJwt,
+} from './crypto/ed25519-jwt';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,7 +31,9 @@ const MFA_CHALLENGE_TTL_SECONDS = 300;
 @Injectable()
 export class TokenService {
   private readonly privateKey: KeyObject;
-  private readonly publicKey: KeyObject;
+  private readonly kid: string;
+  /** Current key first; the previous key only while a rotation is in progress. */
+  private readonly publicKeys: VerificationKey[];
   private readonly issuer: string;
   private readonly ttlSeconds: number;
 
@@ -33,7 +43,13 @@ export class TokenService {
       config.get('JWT_PUBLIC_KEY', { infer: true }),
     );
     this.privateKey = keys.privateKey;
-    this.publicKey = keys.publicKey;
+    this.kid = keyId(keys.publicKey);
+    this.publicKeys = [{ kid: this.kid, key: keys.publicKey }];
+    const previous = config.get('JWT_PREVIOUS_PUBLIC_KEY', { infer: true });
+    if (previous) {
+      const key = loadEd25519PublicKey(previous);
+      if (keyId(key) !== this.kid) this.publicKeys.push({ kid: keyId(key), key });
+    }
     this.issuer = config.get('JWT_ISSUER', { infer: true });
     this.ttlSeconds = config.get('ACCESS_TOKEN_TTL_SECONDS', { infer: true });
   }
@@ -74,7 +90,7 @@ export class TokenService {
 
   /** Throws InvalidTokenError unless the token is an authentic, current hospital token. */
   verifyAccessToken(token: string): AuthContext {
-    const claims = verifyJwt(token, this.publicKey, {
+    const claims = verifyJwt(token, this.publicKeys, {
       issuer: this.issuer,
       audiences: TENANT_AUDIENCES,
     });
@@ -137,7 +153,7 @@ export class TokenService {
   }
 
   verifyPlatformAccessToken(token: string): PlatformAuthContext {
-    const claims = verifyJwt(token, this.publicKey, {
+    const claims = verifyJwt(token, this.publicKeys, {
       issuer: this.issuer,
       audiences: ['platform'],
     });
@@ -154,7 +170,7 @@ export class TokenService {
 
   /** Returns the platform user ID the password step was completed for. */
   verifyPlatformMfaToken(token: string): string {
-    const claims = verifyJwt(token, this.publicKey, {
+    const claims = verifyJwt(token, this.publicKeys, {
       issuer: this.issuer,
       audiences: ['platform-mfa'],
     });
@@ -171,7 +187,7 @@ export class TokenService {
   ): { token: string; expiresAt: Date } {
     const iat = Math.floor(now.getTime() / 1000);
     const exp = iat + Math.max(1, ttlSeconds);
-    const token = signJwt({ iss: this.issuer, ...claims, iat, exp }, this.privateKey);
+    const token = signJwt({ iss: this.issuer, ...claims, iat, exp }, this.privateKey, this.kid);
     return { token, expiresAt: new Date(exp * 1000) };
   }
 }

@@ -23,7 +23,8 @@ import type { CookieOptions, Request, Response } from 'express';
 import type { Env } from '../config/env.validation';
 import type { AuthContext, RequestMeta } from './auth-context';
 import { AuthService } from './auth.service';
-import { CurrentAuth, Public } from './decorators';
+import { CurrentAuth, Public, SelfService } from './decorators';
+import { DEVICE_COOKIE, DEVICE_COOKIE_MAX_AGE_MS } from './known-devices.service';
 import {
   ChallengeResponseDto,
   CurrentUserDto,
@@ -114,7 +115,7 @@ export class AuthController {
       dto.identifier,
       dto.password,
       dto.client,
-      meta(req),
+      staffMeta(req, dto.deviceToken),
     );
     if (result.status === 'MFA_REQUIRED') {
       return result;
@@ -138,7 +139,7 @@ export class AuthController {
       dto.challengeId,
       dto.code,
       dto.client,
-      meta(req),
+      staffMeta(req, dto.deviceToken),
     );
     return this.respondWithSession(session, res);
   }
@@ -171,6 +172,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @SelfService()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'End the current session' })
@@ -185,6 +187,7 @@ export class AuthController {
   }
 
   @Post('logout-all')
+  @SelfService()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'End every session of the current user on all devices' })
@@ -199,6 +202,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @SelfService()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'The signed-in user, roles and permissions' })
   @ApiOkResponse({ type: CurrentUserDto })
@@ -214,12 +218,20 @@ export class AuthController {
     };
     if (session.client === 'mobile') {
       body.refreshToken = session.refreshToken;
+      if (session.deviceToken) body.deviceToken = session.deviceToken;
       return body;
     }
     res.cookie(REFRESH_COOKIE, session.refreshToken, {
       ...this.cookieOptions(),
       expires: session.refreshTokenExpiresAt,
     });
+    if (session.deviceToken) {
+      // Outlives sign-out on purpose: it identifies the browser, not the session.
+      res.cookie(DEVICE_COOKIE, session.deviceToken, {
+        ...this.cookieOptions(),
+        maxAge: DEVICE_COOKIE_MAX_AGE_MS,
+      });
+    }
     return body;
   }
 
@@ -234,4 +246,10 @@ export class AuthController {
 
 function meta(req: Request): RequestMeta {
   return { ip: req.ip, userAgent: req.get('user-agent') };
+}
+
+/** Web sends the device token as a cookie, mobile in the body. */
+function staffMeta(req: Request, bodyDeviceToken: string | undefined): RequestMeta {
+  const cookies = req.cookies as Record<string, string | undefined> | undefined;
+  return { ...meta(req), deviceToken: cookies?.[DEVICE_COOKIE] ?? bodyDeviceToken };
 }

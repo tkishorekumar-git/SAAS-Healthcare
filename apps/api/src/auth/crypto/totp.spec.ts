@@ -1,5 +1,12 @@
 import { randomBytes } from 'node:crypto';
-import { loadSecretBoxKey, openSecret, sealSecret } from './secret-box';
+import { createCipheriv } from 'node:crypto';
+import {
+  loadSecretBoxKey,
+  needsReseal,
+  openSecret,
+  sealSecret,
+  secretBoxKeyId,
+} from './secret-box';
 import {
   base32Decode,
   base32Encode,
@@ -73,7 +80,7 @@ describe('secret box (AES-256-GCM)', () => {
 
   it('round-trips and never stores the plaintext', () => {
     const sealed = sealSecret('JBSWY3DPEHPK3PXP', key);
-    expect(sealed).toMatch(/^v1\./);
+    expect(sealed.startsWith(`v2.${secretBoxKeyId(key)}.`)).toBe(true);
     expect(sealed).not.toContain('JBSWY3DPEHPK3PXP');
     expect(openSecret(sealed, key)).toBe('JBSWY3DPEHPK3PXP');
   });
@@ -85,7 +92,7 @@ describe('secret box (AES-256-GCM)', () => {
   it('detects tampering and wrong keys', () => {
     const sealed = sealSecret('JBSWY3DPEHPK3PXP', key);
     const parts = sealed.split('.');
-    parts[2] = Buffer.from('tampered').toString('base64url');
+    parts[3] = Buffer.from('tampered').toString('base64url');
     expect(() => openSecret(parts.join('.'), key)).toThrow();
     expect(() =>
       openSecret(sealed, loadSecretBoxKey(randomBytes(32).toString('base64'))),
@@ -94,5 +101,38 @@ describe('secret box (AES-256-GCM)', () => {
 
   it('refuses keys that are not 32 bytes', () => {
     expect(() => loadSecretBoxKey(randomBytes(16).toString('base64'))).toThrow(/32 bytes/);
+  });
+
+  describe('key rotation (ADR-0005)', () => {
+    const previous = loadSecretBoxKey(randomBytes(32).toString('base64'));
+
+    /** The format written before key IDs existed. */
+    function sealV1(plaintext: string, k: Buffer): string {
+      const iv = randomBytes(12);
+      const cipher = createCipheriv('aes-256-gcm', k, iv);
+      const ct = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+      return ['v1', iv, ct, cipher.getAuthTag()]
+        .map((p) => (typeof p === 'string' ? p : p.toString('base64url')))
+        .join('.');
+    }
+
+    it('reads secrets sealed with the previous key while it is configured', () => {
+      const old = sealSecret('JBSWY3DPEHPK3PXP', previous);
+      expect(openSecret(old, [key, previous])).toBe('JBSWY3DPEHPK3PXP');
+      expect(() => openSecret(old, [key])).toThrow(/unknown key/);
+    });
+
+    it('reads the old v1 format with either key', () => {
+      expect(openSecret(sealV1('JBSWY3DPEHPK3PXP', previous), [key, previous])).toBe(
+        'JBSWY3DPEHPK3PXP',
+      );
+      expect(() => openSecret(sealV1('JBSWY3DPEHPK3PXP', previous), [key])).toThrow();
+    });
+
+    it('asks for a re-seal unless the secret is v2 under the current key', () => {
+      expect(needsReseal(sealSecret('s', key), key)).toBe(false);
+      expect(needsReseal(sealSecret('s', previous), key)).toBe(true);
+      expect(needsReseal(sealV1('s', key), key)).toBe(true);
+    });
   });
 });

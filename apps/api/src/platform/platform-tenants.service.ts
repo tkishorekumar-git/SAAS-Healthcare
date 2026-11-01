@@ -15,6 +15,7 @@ import { PlatformDatabase } from '../database/platform-database.service';
 import { generateInvitationToken, invitationLink } from '../staff/invitation-token';
 import { INVITATION_TTL_MS } from '../staff/invitations.service';
 import { PlatformAuditService } from './platform-audit.service';
+import { describeError } from '../bootstrap/safe-exception.filter';
 
 export interface OnboardHospitalInput {
   code: string;
@@ -382,9 +383,7 @@ export class PlatformTenantsService {
         invitationLink(this.webAppUrl, tenant.slug, token),
       );
     } catch (error) {
-      this.logger.error(
-        `Admin invitation SMS failed: ${error instanceof Error ? error.message : 'unknown error'}`,
-      );
+      this.logger.error(`Admin invitation SMS failed: ${describeError(error)}`);
     }
   }
 }

@@ -7,7 +7,7 @@ import { Input } from '@kenisha/ui/components/input';
 import { Field } from '@kenisha/ui/components/label';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api/http';
 import { formatDateTime } from '@/lib/format';
 import { useAction, useApi } from '@/lib/use-api';
@@ -23,8 +23,12 @@ interface InvitationPreview {
 /** Invitation link landing page: shows who it is for, then the invitee sets a password. */
 export function InviteForm() {
   const params = useSearchParams();
-  const hospitalCode = params.get('hospital') ?? '';
-  const token = params.get('token') ?? '';
+  // Read once, then drop the one-time token from the address bar and browser history.
+  const [hospitalCode] = useState(() => params.get('hospital') ?? '');
+  const [token] = useState(() => params.get('token') ?? '');
+  useEffect(() => {
+    if (window.location.search) window.history.replaceState(null, '', window.location.pathname);
+  }, []);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [done, setDone] = useState(false);

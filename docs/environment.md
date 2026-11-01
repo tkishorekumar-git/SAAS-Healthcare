@@ -47,20 +47,30 @@ never print its value.
 Generate the four secrets with `pnpm --filter @kenisha/api auth:secrets`. All are
 **secrets**: never commit them, and use different values per environment.
 
-| Variable                   | Required | Default       | Description                                                                                                                                        |
-| -------------------------- | -------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `JWT_PRIVATE_KEY`          | **yes**  | —             | Base64-encoded PEM (PKCS#8) Ed25519 key that signs access tokens. **Secret**                                                                       |
-| `JWT_PUBLIC_KEY`           | **yes**  | —             | Base64-encoded PEM (SPKI) Ed25519 key that verifies them                                                                                           |
-| `PLATFORM_TOTP_KEY`        | **yes**  | —             | Base64 32-byte key that encrypts Super Admin authenticator secrets (AES-256-GCM). **Secret.** Changing it invalidates every enrolled authenticator |
-| `OTP_HMAC_SECRET`          | **yes**  | —             | ≥ 32 chars; one-time codes are stored only as HMACs keyed with it. **Secret**                                                                      |
-| `SMS_PROVIDER`             | **yes**  | —             | `development` only for now (codes go to the API log; refused outside dev/test)                                                                     |
-| `JWT_ISSUER`               | no       | `kenisha-api` | `iss` claim of access tokens                                                                                                                       |
-| `ACCESS_TOKEN_TTL_SECONDS` | no       | `900`         | Access-token lifetime (60–3600)                                                                                                                    |
-| `AUTH_COOKIE_SECURE`       | no       | `true`        | `Secure` flag on the web refresh cookie (browsers accept it on `http://localhost`)                                                                 |
-| `AUTH_THROTTLE_LIMIT`      | no       | `10`          | Login requests per minute per IP (in-process until Redis is introduced)                                                                            |
+| Variable                     | Required | Default       | Description                                                                                                                               |
+| ---------------------------- | -------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `JWT_PRIVATE_KEY`            | **yes**  | —             | Base64-encoded PEM (PKCS#8) Ed25519 key that signs access tokens. **Secret**                                                              |
+| `JWT_PUBLIC_KEY`             | **yes**  | —             | Base64-encoded PEM (SPKI) Ed25519 key that verifies them                                                                                  |
+| `PLATFORM_TOTP_KEY`          | **yes**  | —             | Base64 32-byte key that encrypts Super Admin authenticator secrets (AES-256-GCM). **Secret.** Change it only through the rotation runbook |
+| `JWT_PREVIOUS_PUBLIC_KEY`    | no       | —             | Only during a JWT key rotation: the previous public key, so tokens signed before the switch stay valid until they expire                  |
+| `PLATFORM_TOTP_KEY_PREVIOUS` | no       | —             | Only during a `PLATFORM_TOTP_KEY` rotation: the previous key, until `platform:reseal-totp` has re-encrypted every secret. **Secret**      |
+| `OTP_HMAC_SECRET`            | **yes**  | —             | ≥ 32 chars; one-time codes are stored only as HMACs keyed with it. **Secret**                                                             |
+| `SMS_PROVIDER`               | **yes**  | —             | `development` only for now (codes go to the API log; refused outside dev/test)                                                            |
+| `JWT_ISSUER`                 | no       | `kenisha-api` | `iss` claim of access tokens                                                                                                              |
+| `ACCESS_TOKEN_TTL_SECONDS`   | no       | `900`         | Access-token lifetime (60–3600)                                                                                                           |
+| `AUTH_COOKIE_SECURE`         | no       | `true`        | `Secure` flag on the web refresh cookie (browsers accept it on `http://localhost`)                                                        |
+| `AUTH_THROTTLE_LIMIT`        | no       | `10`          | Login requests per minute per IP (in-process until Redis is introduced)                                                                   |
 
-Rotating the JWT keys signs every user out within 15 minutes. Rotating `OTP_HMAC_SECRET`
-invalidates codes that are in flight (valid for 5 minutes).
+Rotate secrets only through [the rotation runbook](security/runbooks/secret-rotation.md):
+with `JWT_PREVIOUS_PUBLIC_KEY` and `PLATFORM_TOTP_KEY_PREVIOUS` no one is signed out and no
+authenticator has to be re-enrolled. Rotating `OTP_HMAC_SECRET` invalidates codes that are
+in flight (valid for 5 minutes).
+
+### API maintenance (ADR-0005)
+
+| Variable                           | Required | Default | Description                                                                                       |
+| ---------------------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------- |
+| `AUTH_DATA_PURGE_INTERVAL_MINUTES` | no       | `60`    | How often expired one-time codes, sessions, invitations and devices are deleted (`0` disables it) |
 
 ## Database package (`packages/database/.env`)
 

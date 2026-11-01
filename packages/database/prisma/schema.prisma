@@ -208,6 +208,7 @@ model User {
   passwordCredential PasswordCredential?
   otpChallenges      OtpChallenge[]
   sessions           Session[]
+  knownDevices       KnownDevice[]
   supportDecisions   SupportAccessRequest[]
   invitationsSent    StaffInvitation[]       @relation("InvitedBy")
   invitationAccepted StaffInvitation[]       @relation("AcceptedUser")
@@ -480,4 +481,20 @@ model StaffInvitation {
 
   @@index([tenantId, status])
   @@map("staff_invitations")
+}
+
+/// Devices a staff member has signed in from (ADR-0005). Only a SHA-256 hash of the random
+/// device token is stored; a sign-in from an unknown device triggers an SMS alert.
+model KnownDevice {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  deviceHash  String   @map("device_hash") @db.Char(64)
+  firstSeenAt DateTime @default(now()) @map("first_seen_at") @db.Timestamptz(3)
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, userId, deviceHash])
+  @@map("known_devices")
 }

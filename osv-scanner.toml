@@ -1,0 +1,9 @@
+# OSV-Scanner configuration (ADR-0005). The CI build fails on any known vulnerability in a
+# dependency unless it is listed here. Every exception needs a reason and an expiry date
+# (`ignoreUntil`), after which the build fails again and the decision must be revisited.
+#
+# Example:
+# [[IgnoredVulns]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# ignoreUntil = 2027-01-31
+# reason = "Dev-only dependency; vulnerable code path not reachable. Tracked in <issue>."

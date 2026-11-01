@@ -13,7 +13,11 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   transpilePackages: ['@kenisha/ui'],
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      // The invitation link carries a one-time token: never send it anywhere as a referrer.
+      { source: '/invite', headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }] },
+    ];
   },
 };
 

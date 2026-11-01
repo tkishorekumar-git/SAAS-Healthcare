@@ -7,6 +7,8 @@ export interface SmsProvider {
   sendOneTimeCode(phoneE164: string, code: string): Promise<void>;
   /** Staff invitation: a one-time link to activate the account (ADR-0004 section 1). */
   sendInvitation(phoneE164: string, hospitalName: string, link: string): Promise<void>;
+  /** "Your account was signed in to from a new device" (ADR-0005). */
+  sendNewDeviceAlert(phoneE164: string, hospitalName: string): Promise<void>;
 }
 
 /**
@@ -32,6 +34,12 @@ export class DevelopmentSmsProvider implements SmsProvider {
   async sendInvitation(phoneE164: string, hospitalName: string, link: string): Promise<void> {
     this.logger.warn(
       `[DEV ONLY] invitation to ${hospitalName} for ******${phoneE164.slice(-4)}: ${link}`,
+    );
+  }
+
+  async sendNewDeviceAlert(phoneE164: string, hospitalName: string): Promise<void> {
+    this.logger.warn(
+      `[DEV ONLY] new-device sign-in alert (${hospitalName}) for ******${phoneE164.slice(-4)}`,
     );
   }
 }

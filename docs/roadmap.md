@@ -10,7 +10,7 @@ Each milestone ends with a review and explicit approval before the next one star
 | 3b  | **Identity & access (platform)** — Super Admin login with authenticator app, break-glass support access                                                                                       | ✅ Complete                             |
 | 4a  | **Tenant administration (API)** — onboarding, SMS staff invitations, staff/branch management, settings, plan limits, suspension                                                               | ✅ Complete                             |
 | 4b  | **Tenant administration (web)** — first admin web screens: sign-in, invitation acceptance, Hospital Admin and Super Admin consoles                                                            | ✅ Complete                             |
-| 5a  | **Security review (code & process)** — threat model, route inventory, API cross-tenant tests, PHI canaries, CI scanning, runbooks ([ADR-0005](architecture/adr/0005-security-review-gate.md)) | Planned (required before clinical work) |
+| 5a  | **Security review (code & process)** — threat model, route inventory, API cross-tenant tests, PHI canaries, CI scanning, runbooks ([ADR-0005](architecture/adr/0005-security-review-gate.md)) | Ready for review                        |
 | 5b  | **Production deployment** — Dockerfiles, Caddy/TLS, Redis rate limits, encrypted off-site backups with restore test, image scanning                                                           | Planned (required before clinical work) |
 | 6   | **Patient registry** — patients, guardians, consent, shared clinical foundations                                                                                                              | Planned                                 |
 | 7+  | Clinical modules — Hospital Management, Chronic Care, Maternal, Pediatric                                                                                                                     | Planned                                 |
@@ -84,3 +84,19 @@ Each milestone ends with a review and explicit approval before the next one star
 - Unit/component tests (session manager, API client, sign-in and invitation forms) and a live
   browser walkthrough of onboarding → invitation → first login → branches → staff invite →
   audit log → sign-out, including phone width.
+
+## Milestone 5a deliverables
+
+- Security review documents: STRIDE threat model with evidence per threat, chapter-level
+  ASVS Level 2 review, scanning policy, and runbooks for secret rotation, incident response
+  and breach notification, and data retention.
+- Every route needs an access decision or the API refuses to start; the route inventory is
+  pinned in a test.
+- API-layer tenant isolation: every ID-bearing hospital route attacked from another hospital;
+  patient tokens refused on every staff route; PHI canaries searched in every log line.
+- Global error filter (no stack traces, database messages or echoed input).
+- Breached-password list loader (starter list until refreshed), new-device SMS alerts for
+  staff, JWT and authenticator-key rotation without sign-outs, hourly purge of expired
+  authentication data (database-enforced retention).
+- CI security job: gitleaks (full history), OSV-Scanner (npm and Dart), Semgrep.
+- Invitation token removed from the browser address bar.

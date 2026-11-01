@@ -1,0 +1,8 @@
+# Semgrep: generated, vendored and build output only. Tests are scanned too.
+node_modules/
+**/dist/
+**/.next/
+**/.turbo/
+**/coverage/
+packages/database/src/generated/
+apps/mobile/build/

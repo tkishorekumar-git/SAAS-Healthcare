@@ -92,24 +92,71 @@ account); no new-device login alerts yet (carried over from 3a).
 - Passwords are cleared from page state after every sign-in attempt.
 - UI permission checks are cosmetic only; the API enforces every permission.
 
+## Already in place (Milestone 5a)
+
+Security review documents: [threat model](security/threat-model.md),
+[ASVS Level 2 review](security/asvs-l2-review.md), [scanning](security/scanning.md), and
+runbooks for [secret rotation](security/runbooks/secret-rotation.md),
+[incidents](security/runbooks/incident-response.md) and
+[data retention](security/runbooks/data-retention.md).
+
+- Every route must carry an access decision (`@Public`, `@PlatformRoute`,
+  `@RequirePermissions` or `@SelfService`); the API refuses to start otherwise, and the full
+  route inventory is pinned in a test.
+- Cross-tenant attacks on every ID-bearing hospital route fail with 404 and change nothing;
+  patient tokens are refused on every staff route.
+- A global error filter returns fixed bodies; unexpected errors are logged as class, code and
+  error ID only; malformed JSON and unknown paths are never echoed.
+- Planted synthetic names and phone numbers are searched for in every log line (all levels)
+  during the API test suite.
+- Breached-password list bundled with the API; SMS alert when a staff account signs in
+  from a new device without the SMS factor.
+- JWT and `PLATFORM_TOTP_KEY` rotation without signing anyone out or re-enrolling
+  authenticators.
+- Expired codes, sessions, invitations and devices are purged hourly; database policies
+  limit the purge to rows already past retention.
+- CI scans the whole git history for secrets (gitleaks), dependencies for known
+  vulnerabilities (OSV-Scanner) and code for insecure patterns (Semgrep).
+- The invitation token is removed from the address bar after it is read.
+
+**Known limitations (5a):** the bundled breached-password list is still the short starter
+list until refreshed with `passwords:update`; per-IP rate limits are per process until Redis
+(5b); Super Admin new-device alerts need an email provider; the ASVS review is chapter-level
+(requirement-level before the independent pen test).
+
 ## Pre-clinical security review checklist (Milestone 5 gate)
 
-- [ ] Threat model (STRIDE) for API, web, mobile, infrastructure
-- [ ] Tenant isolation tests: cross-tenant read/write attempts fail at app **and** RLS layers
-      _(RLS layer done in M2; extend to every new table and to API endpoints)_
-- [ ] AuthN: password policy, MFA for staff/admins, secure session/token lifetimes, revocation
-- [ ] AuthZ: every endpoint has role + resource checks; deny by default
-- [ ] Audit log for all access to and changes of clinical records (who, what, when, tenant)
-- [ ] No PHI in logs, URLs, error responses, analytics, crash reports
-- [ ] Encryption in transit (TLS 1.2+, HSTS) and at rest (disk + backups)
-- [ ] Field-level encryption decision for highly sensitive fields
-- [ ] Backups encrypted, off-site, restore tested
-- [ ] Secrets in a secret store; rotation procedure documented
-- [ ] Dependency and container image scanning in CI
-- [ ] Secret scanning (e.g. gitleaks) in CI and pre-commit
-- [ ] Mobile: secure storage for tokens, no secrets in APK, release builds HTTPS-only
-- [ ] Data retention and deletion procedures (DPDP rights of data principals)
-- [ ] Incident response and breach-notification runbook
+Evidence for each item is in the [threat model](security/threat-model.md) and the
+[ASVS review](security/asvs-l2-review.md). Items marked _5b_ close with the production
+deployment; items marked _M6_ are design requirements for the first clinical milestone.
+
+- [x] Threat model (STRIDE) for API, web, mobile, infrastructure —
+      [threat-model.md](security/threat-model.md) (mobile and VPS sections carry gates)
+- [x] Tenant isolation tests: cross-tenant read/write attempts fail at app **and** RLS layers
+      — `apps/api/test/isolation.e2e-db-spec.ts` + database isolation suites; new tables
+      must be added to both
+- [x] AuthN: password policy, MFA for staff/admins, secure session/token lifetimes, revocation
+- [x] AuthZ: every endpoint has role + resource checks; deny by default — start-up check and
+      route inventory
+- [ ] Audit log for all access to and changes of clinical records — _M6_ (administrative and
+      sign-in events are audited today)
+- [x] No PHI in logs, URLs, error responses — canary test and error filter (analytics and
+      crash reporting do not exist yet; any future one needs a PHI review)
+- [ ] Encryption in transit (TLS 1.2+, HSTS) and at rest (disk + backups) — _5b_
+- [x] Field-level encryption decision for highly sensitive fields — ADR-0005 S2 (implemented
+      in _M6_)
+- [ ] Backups encrypted, off-site, restore tested — _5b_
+- [x] Secrets rotation procedure documented —
+      [secret-rotation.md](security/runbooks/secret-rotation.md); secret store on the server — _5b_
+- [ ] Dependency and container image scanning in CI — dependencies done (OSV); images _5b_
+- [x] Secret scanning (gitleaks) in CI; optional pre-commit hook documented
+- [ ] Mobile: secure storage for tokens, no secrets in APK, release builds HTTPS-only — no
+      secrets today; the rest is a gate on the Android login milestone
+- [x] Data retention and deletion procedures —
+      [data-retention.md](security/runbooks/data-retention.md); clinical periods need legal
+      counsel before _M6_
+- [x] Incident response and breach-notification runbook —
+      [incident-response.md](security/runbooks/incident-response.md) (legal review before go-live)
 
 ## Reporting
 

@@ -38,6 +38,10 @@ export const envSchema = z.object({
     .regex(/^postgres(ql)?:\/\//, 'must be a postgresql:// connection string'),
   /** Base64-encoded 32-byte key that encrypts Super Admin authenticator secrets. */
   PLATFORM_TOTP_KEY: z.string().min(40, 'must be a base64-encoded 32-byte key'),
+  /** Only during a key rotation: the previous key, to read secrets not yet re-encrypted. */
+  PLATFORM_TOTP_KEY_PREVIOUS: z.string().min(40).optional(),
+  /** How often expired codes, sessions and invitations are deleted; 0 disables (ADR-0005). */
+  AUTH_DATA_PURGE_INTERVAL_MINUTES: z.coerce.number().int().min(0).max(1440).default(60),
   REDIS_URL: z
     .string()
     .regex(/^rediss?:\/\//, 'must be a redis:// or rediss:// URL')
@@ -48,6 +52,11 @@ export const envSchema = z.object({
   JWT_PRIVATE_KEY: z.string().min(40, 'must be a base64-encoded Ed25519 private key'),
   /** Base64-encoded PEM (SPKI) Ed25519 public key. */
   JWT_PUBLIC_KEY: z.string().min(40, 'must be a base64-encoded Ed25519 public key'),
+  /**
+   * Only during a key rotation: the previous public key, so access tokens signed before the
+   * switch stay valid until they expire (docs/security/runbooks/secret-rotation.md).
+   */
+  JWT_PREVIOUS_PUBLIC_KEY: z.string().min(40).optional(),
   JWT_ISSUER: z.string().min(1).default('kenisha-api'),
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
   OTP_HMAC_SECRET: z.string().min(32, 'must be at least 32 characters'),

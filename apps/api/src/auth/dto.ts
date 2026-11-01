@@ -58,9 +58,25 @@ export class StaffLoginDto extends HospitalScopedDto {
   @ApiProperty({ enum: CLIENTS })
   @IsIn(CLIENTS)
   client!: AuthClient;
+
+  @ApiPropertyOptional({
+    description: 'Mobile only: the device token from an earlier sign-in. Web uses a cookie.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  deviceToken?: string;
 }
 
-export class StaffCodeDto extends CodeVerificationDto {}
+export class StaffCodeDto extends CodeVerificationDto {
+  @ApiPropertyOptional({
+    description: 'Mobile only: the device token from an earlier sign-in. Web uses a cookie.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  deviceToken?: string;
+}
 
 export class RefreshDto {
   @ApiPropertyOptional({ description: 'Mobile only. Web sends the HttpOnly cookie instead.' })
@@ -87,6 +103,9 @@ export class TokensResponseDto {
 
   @ApiPropertyOptional({ description: 'Mobile clients only' })
   refreshToken?: string;
+
+  @ApiPropertyOptional({ description: 'Mobile staff sign-in only: keep and send next time' })
+  deviceToken?: string;
 }
 
 export class StaffLoginResponseDto {

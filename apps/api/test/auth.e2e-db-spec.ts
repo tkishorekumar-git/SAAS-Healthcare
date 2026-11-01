@@ -203,6 +203,12 @@ beforeAll(async () => {
     email: 'nurse@beta.example.test',
     roles: ['NURSE'],
   });
+  await createUser(beta.id, 'betaDoctor', {
+    kind: 'STAFF',
+    phone: '+919300000009',
+    email: 'doctor@beta.example.test',
+    roles: ['DOCTOR'],
+  });
 
   sms = new CapturingSms();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -381,6 +387,105 @@ describe('staff login with password and SMS factor', () => {
       });
     for (let i = 0; i < 5; i += 1) await wrong().expect(401);
     await staffLogin('alpha-demo', 'lockme@alpha.example.test').expect(401);
+  });
+});
+
+describe('new-device sign-in alerts (ADR-0005)', () => {
+  const PHONE = '+919300000009';
+  const alertsFor = (phone: string) => sms.deviceAlerts.filter((a) => a.phone === phone).length;
+  let deviceToken: string;
+
+  function doctorLogin(body: Record<string, unknown> = {}, client: 'mobile' | 'web' = 'mobile') {
+    return api()
+      .post('/api/v1/auth/staff/login')
+      .send({
+        hospitalCode: 'beta-demo',
+        identifier: 'doctor@beta.example.test',
+        password: PASSWORD,
+        client,
+        ...body,
+      })
+      .expect(200);
+  }
+
+  it('remembers the first device without alerting', async () => {
+    const first = await doctorLogin();
+    expect(first.body.status).toBe('AUTHENTICATED');
+    deviceToken = first.body.tokens.deviceToken;
+    expect(deviceToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(alertsFor(PHONE)).toBe(0);
+  });
+
+  it('does not alert for a known device', async () => {
+    const again = await doctorLogin({ deviceToken });
+    expect(again.body.tokens.deviceToken).toBe(deviceToken);
+    expect(alertsFor(PHONE)).toBe(0);
+  });
+
+  it('alerts the account owner by SMS when a new device signs in', async () => {
+    const other = await doctorLogin({ deviceToken: 'x'.repeat(43) });
+    expect(other.body.tokens.deviceToken).not.toBe(deviceToken);
+    expect(sms.deviceAlerts.filter((a) => a.phone === PHONE)).toEqual([
+      { phone: PHONE, hospitalName: 'Beta Demo Clinic' },
+    ]);
+
+    const audit = await withTenant(db, ids.beta!, (tx) =>
+      tx.auditEvent.findMany({
+        where: { actorUserId: ids.betaDoctor, action: 'AUTH_STAFF_LOGIN' },
+        orderBy: { createdAt: 'asc' },
+      }),
+    );
+    expect(audit.map((e) => e.metadata)).toEqual([
+      { secondFactor: false, newDevice: true, alerted: false },
+      { secondFactor: false, newDevice: false, alerted: false },
+      { secondFactor: false, newDevice: true, alerted: true },
+    ]);
+    // Only the hash is stored.
+    const stored = await withTenant(db, ids.beta!, (tx) =>
+      tx.knownDevice.findMany({ where: { userId: ids.betaDoctor } }),
+    );
+    expect(stored).toHaveLength(2);
+    expect(JSON.stringify(stored)).not.toContain(deviceToken);
+  });
+
+  it('keeps the web device token in an HttpOnly cookie, not the response body', async () => {
+    const web = await doctorLogin({}, 'web');
+    const cookies = ([] as string[]).concat(web.headers['set-cookie'] ?? []);
+    const device = cookies.find((c) => c.startsWith('kenisha_dev='));
+    expect(device).toMatch(/HttpOnly/i);
+    expect(device).toMatch(/SameSite=Strict/i);
+    expect(device).toMatch(/Path=\/api\/v1\/auth/);
+    expect(web.body.tokens.deviceToken).toBeUndefined();
+    const alertsBefore = alertsFor(PHONE);
+
+    await api()
+      .post('/api/v1/auth/staff/login')
+      .set('Cookie', device!.split(';')[0]!)
+      .send({
+        hospitalCode: 'beta-demo',
+        identifier: 'doctor@beta.example.test',
+        password: PASSWORD,
+        client: 'web',
+      })
+      .expect(200);
+    expect(alertsFor(PHONE)).toBe(alertsBefore);
+  });
+
+  it('never sends an extra alert when the SMS factor was used', async () => {
+    const before = sms.deviceAlerts.length;
+    const first = await staffLogin('beta-demo', 'admin@beta.example.test').expect(200);
+    const verified = await api()
+      .post('/api/v1/auth/staff/mfa/verify')
+      .send({
+        hospitalCode: 'beta-demo',
+        challengeId: first.body.challengeId,
+        code: sms.lastCodeFor('+919300000001'),
+        client: 'mobile',
+        deviceToken: 'y'.repeat(43),
+      })
+      .expect(200);
+    expect(verified.body.deviceToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(sms.deviceAlerts.length).toBe(before);
   });
 });
 

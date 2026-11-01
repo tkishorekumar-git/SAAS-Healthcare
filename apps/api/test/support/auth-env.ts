@@ -13,3 +13,5 @@ process.env.AUTH_COOKIE_SECURE = 'false';
 // Tests log in many times from one address; the real per-IP limit is unit-tested separately.
 process.env.AUTH_THROTTLE_LIMIT = '1000';
 process.env.PLATFORM_TOTP_KEY = randomBytes(32).toString('base64');
+// Tests call the purge directly instead of on a timer.
+process.env.AUTH_DATA_PURGE_INTERVAL_MINUTES = '0';

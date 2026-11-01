@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { PlatformAuthContext, RequestMeta } from '../auth/auth-context';
 import { InvalidTokenError } from '../auth/crypto/ed25519-jwt';
-import { loadSecretBoxKey, openSecret } from '../auth/crypto/secret-box';
+import { loadSecretBoxKey, needsReseal, openSecret, sealSecret } from '../auth/crypto/secret-box';
 import { verifyTotp } from '../auth/crypto/totp';
 import { verifyPassword } from '../auth/password/password-hasher';
 import { TokenService } from '../auth/token.service';
@@ -24,6 +24,8 @@ const INVALID_LOGIN = 'Invalid login details.';
 @Injectable()
 export class PlatformAuthService {
   private readonly totpKey: Buffer;
+  /** Current key first; the previous key only while a rotation is in progress. */
+  private readonly totpKeys: Buffer[];
 
   constructor(
     private readonly db: PlatformDatabase,
@@ -33,6 +35,8 @@ export class PlatformAuthService {
     config: ConfigService<Env, true>,
   ) {
     this.totpKey = loadSecretBoxKey(config.get('PLATFORM_TOTP_KEY', { infer: true }));
+    const previous = config.get('PLATFORM_TOTP_KEY_PREVIOUS', { infer: true });
+    this.totpKeys = previous ? [this.totpKey, loadSecretBoxKey(previous)] : [this.totpKey];
   }
 
   /** Step 1: password. Returns a 5-minute token for step 2; never a session. */
@@ -97,12 +101,8 @@ export class PlatformAuthService {
     }
 
     const lastStep = user.totpLastUsedStep === null ? null : Number(user.totpLastUsedStep);
-    const step = verifyTotp(
-      openSecret(user.totpSecretEncrypted, this.totpKey),
-      code,
-      now,
-      lastStep,
-    );
+    const secret = openSecret(user.totpSecretEncrypted, this.totpKeys);
+    const step = verifyTotp(secret, code, now, lastStep);
     if (step === null) {
       await this.recordFailure(user.id, user.failedAttempts, meta, now);
       await this.audit.record({
@@ -121,7 +121,15 @@ export class PlatformAuthService {
         id: user.id,
         OR: [{ totpLastUsedStep: null }, { totpLastUsedStep: { lt: BigInt(step) } }],
       },
-      data: { totpLastUsedStep: BigInt(step), failedAttempts: 0, lockedUntil: null },
+      data: {
+        totpLastUsedStep: BigInt(step),
+        failedAttempts: 0,
+        lockedUntil: null,
+        // Key rotation: re-encrypt under the current key on the next successful login.
+        ...(needsReseal(user.totpSecretEncrypted, this.totpKey)
+          ? { totpSecretEncrypted: sealSecret(secret, this.totpKey) }
+          : {}),
+      },
     });
     if (accepted.count !== 1) {
       throw new UnauthorizedException('The code is invalid or has already been used.');

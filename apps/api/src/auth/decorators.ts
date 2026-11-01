@@ -11,9 +11,17 @@ import type { AuthContext, PlatformAuthContext } from './auth-context';
 export const IS_PUBLIC = 'kenisha:isPublic';
 export const IS_PLATFORM = 'kenisha:isPlatform';
 export const REQUIRED_PERMISSIONS = 'kenisha:requiredPermissions';
+export const IS_SELF_SERVICE = 'kenisha:isSelfService';
 
 /** Opts an endpoint out of the global authentication guard. Use sparingly. */
 export const Public = () => SetMetadata(IS_PUBLIC, true);
+
+/**
+ * Any signed-in hospital user, acting only on their own account (sign out, "who am I").
+ * Every hospital route must carry either this or @RequirePermissions — the API refuses to
+ * start otherwise (see route-access.ts).
+ */
+export const SelfService = () => SetMetadata(IS_SELF_SERVICE, true);
 
 /** Marks a /platform controller: Super Admin tokens only, never hospital tokens. */
 export const PlatformRoute = () => SetMetadata(IS_PLATFORM, true);

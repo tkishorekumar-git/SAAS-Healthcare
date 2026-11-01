@@ -1,5 +1,25 @@
 import { hashPassword, verifyPassword } from './password-hasher';
-import { checkPasswordPolicy } from './password-policy';
+import {
+  breachedPasswordCount,
+  checkPasswordPolicy,
+  parseBreachedPasswords,
+} from './password-policy';
+
+describe('bundled breached-password list (ADR-0005 S4)', () => {
+  it('loads the list shipped with the API', () => {
+    expect(breachedPasswordCount()).toBeGreaterThanOrEqual(20);
+  });
+
+  it('rejects a listed password in any letter case', () => {
+    expect(checkPasswordPolicy('IloveYou1234')).toContain('is too common');
+  });
+
+  it('ignores comments, blank lines and surrounding spaces', () => {
+    expect([...parseBreachedPasswords('# header\r\n\n  Sunflower-2024  \n')]).toEqual([
+      'sunflower-2024',
+    ]);
+  });
+});
 
 describe('checkPasswordPolicy', () => {
   it('accepts a long, uncommon password', () => {

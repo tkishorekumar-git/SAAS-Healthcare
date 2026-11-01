@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InviteForm } from './invite-form';
 
 vi.mock('next/navigation', () => ({
@@ -15,7 +15,14 @@ const preview = {
 };
 
 describe('InviteForm', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => {
+    window.history.pushState(null, '', `/invite?hospital=omega-demo&token=${'t'.repeat(43)}`);
+    vi.spyOn(window.history, 'replaceState');
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   it('shows who the invitation is for, then activates the account', async () => {
     const fetchMock = vi
@@ -29,6 +36,7 @@ describe('InviteForm', () => {
 
     expect(await screen.findByText('Omega Demo Hospital')).toBeInTheDocument();
     expect(screen.getByText('Doctor')).toBeInTheDocument();
+    expect(window.history.replaceState).toHaveBeenCalledWith(null, '', '/invite');
     expect(screen.getByText('******0002')).toBeInTheDocument();
 
     const submit = screen.getByRole('button', { name: 'Activate my account' });

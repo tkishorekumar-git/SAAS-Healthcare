@@ -79,9 +79,12 @@ Flutter: `cd apps/mobile && flutter analyze && flutter test`.
   `@kenisha/ui/components/<name>`.
 - Roles are defined once in `packages/shared/src/roles.ts`; the role → permission map in
   `packages/shared/src/permissions.ts`.
-- **Every endpoint is authenticated by default.** Mark genuinely public endpoints with
-  `@Public()`; protect the rest with `@RequirePermissions(...)` and read the caller with
-  `@CurrentAuth()`. Tenant ID always comes from `CurrentAuth`, never from the request.
+- **Every endpoint is authenticated by default** and needs exactly one access decision, or the
+  API refuses to start: `@Public()` (genuinely public), `@PlatformRoute()` (Super Admin),
+  `@RequirePermissions(...)`, or `@SelfService()` (any signed-in hospital user, own account
+  only). Read the caller with `@CurrentAuth()`. Tenant ID always comes from `CurrentAuth`,
+  never from the request. Add each new route to `apps/api/test/route-inventory.e2e-spec.ts`;
+  each new ID-bearing route also to the attacks in `apps/api/test/isolation.e2e-db-spec.ts`.
 - Super Admin endpoints live under `/platform`, are marked `@PlatformRoute()` and use only
   `PlatformDatabase` (kenisha_platform) — never `TenantDatabase`.
 - Anything that consumes plan capacity (staff, branches) calls `PlanLimitsService.assert*`
@@ -91,5 +94,8 @@ Flutter: `cd apps/mobile && flutter analyze && flutter test`.
   transaction — IDs and reason codes only, never codes, tokens, passwords or PHI.
 - Error messages on login paths stay generic: never reveal whether a hospital, account or
   phone number exists.
-- Use the Nest `Logger`, never `console.log` (ESLint enforces this).
+- Use the Nest `Logger`, never `console.log` (ESLint enforces this). Log errors with
+  `describeError(error)` (class and code only) — never `error.message`, which can quote data.
+- Security documents (threat model, runbooks, scanning) live in `docs/security/`; update the
+  threat model when adding a trust boundary, datastore or authentication path.
 - Conventional commits: `feat(api): ...`, `fix(web): ...`, `chore: ...`.

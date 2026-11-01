@@ -28,6 +28,8 @@ import { verifyPassword } from './password/password-hasher';
 import { normalizePhoneE164 } from './phone';
 import { type IssuedSession, SessionService } from './session.service';
 import { SMS_PROVIDER, type SmsProvider } from './sms/sms.provider';
+import { describeError } from '../bootstrap/safe-exception.filter';
+import { KnownDeviceService } from './known-devices.service';
 
 /** ADR-0003 §2–3 limits. */
 export const OTP_TTL_SECONDS = 300;
@@ -61,6 +63,7 @@ export class AuthService {
     private readonly sessions: SessionService,
     private readonly audit: AuditService,
     private readonly limits: PlanLimitsService,
+    private readonly devices: KnownDeviceService,
     @Inject(SMS_PROVIDER) private readonly sms: SmsProvider,
     config: ConfigService<Env, true>,
   ) {
@@ -259,7 +262,7 @@ export class AuthService {
 
       const settings = await tx.tenant.findUniqueOrThrow({
         where: { id: tenantId },
-        select: { staffMfaMode: true },
+        select: { staffMfaMode: true, name: true },
       });
       const mfaRequired =
         roles.some((r) => HOSPITAL_ADMIN_ROLES.includes(r)) ||
@@ -299,14 +302,22 @@ export class AuthService {
         meta,
         now,
       );
+      // Without an SMS factor the owner hears nothing about this sign-in, so a new device
+      // gets an SMS alert (ADR-0005). The very first device after joining does not.
+      const device = await this.devices.recognise(tx, tenantId, user.id, meta.deviceToken, now);
+      const alert = device.isNew && !device.isFirstDevice;
       await this.audit.record(tx, tenantId, {
         action: 'AUTH_STAFF_LOGIN',
         outcome: 'SUCCESS',
         actorUserId: user.id,
-        metadata: { secondFactor: false },
+        metadata: { secondFactor: false, newDevice: device.isNew, alerted: alert },
         request: meta,
       });
-      return { mfa: false as const, session };
+      return {
+        mfa: false as const,
+        session: { ...session, deviceToken: device.token },
+        alert: alert ? { phone: user.phoneE164, hospitalName: settings.name } : null,
+      };
     });
 
     if (!result) {
@@ -319,6 +330,9 @@ export class AuthService {
         challengeId: result.challengeId,
         expiresInSeconds: OTP_TTL_SECONDS,
       };
+    }
+    if (result.alert) {
+      await this.deliverNewDeviceAlert(result.alert.phone, result.alert.hospitalName);
     }
     return { status: 'AUTHENTICATED', session: result.session };
   }
@@ -363,7 +377,7 @@ export class AuthService {
       if (!valid) {
         return null;
       }
-      return this.sessions.create(
+      const issued = await this.sessions.create(
         tx,
         tenantId,
         { id: user.id, accountKind: 'STAFF', roles },
@@ -371,6 +385,9 @@ export class AuthService {
         meta,
         now,
       );
+      // The SMS code itself told the owner about this sign-in; just remember the device.
+      const device = await this.devices.recognise(tx, tenantId, user.id, meta.deviceToken, now);
+      return { ...issued, deviceToken: device.token };
     });
 
     if (!session) {
@@ -547,13 +564,20 @@ export class AuthService {
   }
 
   /** Sends after the transaction commits. Failures are logged without the phone number. */
+  private async deliverNewDeviceAlert(phone: string, hospitalName: string): Promise<void> {
+    try {
+      await this.sms.sendNewDeviceAlert(phone, hospitalName);
+    } catch (error) {
+      this.logger.error(`New-device alert SMS failed: ${describeError(error)}`);
+    }
+  }
+
+  /** Sends after the transaction commits. Failures are logged without the phone number. */
   private async deliver(phone: string, code: string): Promise<void> {
     try {
       await this.sms.sendOneTimeCode(phone, code);
     } catch (error) {
-      this.logger.error(
-        `SMS delivery failed: ${error instanceof Error ? error.message : 'unknown error'}`,
-      );
+      this.logger.error(`SMS delivery failed: ${describeError(error)}`);
     }
   }
 }

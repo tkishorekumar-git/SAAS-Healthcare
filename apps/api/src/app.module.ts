@@ -9,6 +9,7 @@ import { BranchesModule } from './branches/branches.module';
 import { type Env, validateEnv } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { MaintenanceModule } from './maintenance/maintenance.module';
 import { StaffModule } from './staff/staff.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 
@@ -34,6 +35,7 @@ import { TenancyModule } from './tenancy/tenancy.module';
     AuthModule,
     BranchesModule,
     HealthModule,
+    MaintenanceModule,
     StaffModule,
     TenancyModule,
   ],

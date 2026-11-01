@@ -26,6 +26,8 @@ export interface PlatformAuthContext {
 export interface RequestMeta {
   ip?: string | undefined;
   userAgent?: string | undefined;
+  /** Staff sign-in only: the presented device token (never stored or logged as is). */
+  deviceToken?: string | undefined;
 }
 
 declare global {

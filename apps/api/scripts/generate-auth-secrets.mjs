@@ -1,7 +1,7 @@
 // Prints fresh authentication secrets for apps/api/.env (or a production secret store).
 // Usage: pnpm --filter @kenisha/api auth:secrets
-// Never commit the output. Rotating JWT keys signs everyone out within 15 minutes.
-// PLATFORM_TOTP_KEY must NOT be rotated casually: it decrypts every Super Admin authenticator secret.
+// Never commit the output. To rotate a key in a running environment, follow
+// docs/security/runbooks/secret-rotation.md (no one is signed out if you do).
 import { generateKeyPairSync, randomBytes } from 'node:crypto';
 
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');

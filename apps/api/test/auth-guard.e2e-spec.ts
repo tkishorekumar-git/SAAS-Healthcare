@@ -38,6 +38,23 @@ describe('Authentication guard and validation (e2e)', () => {
       .expect(401);
   });
 
+  it('does not echo malformed JSON back to the caller', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/auth/otp/request')
+      .set('Content-Type', 'application/json')
+      .send('{"phone": "Zenobia Quillfeather')
+      .expect(400);
+    expect(response.body).toMatchObject({ message: 'Request body is not valid JSON.' });
+    expect(JSON.stringify(response.body)).not.toContain('Zenobia');
+  });
+
+  it('does not echo the path of an unknown route', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/no-such-route/Zenobia-Quillfeather')
+      .expect(404);
+    expect(JSON.stringify(response.body)).not.toContain('Zenobia');
+  });
+
   it('keeps health endpoints public', async () => {
     await request(app.getHttpServer()).get('/api/v1/health').expect(200);
   });

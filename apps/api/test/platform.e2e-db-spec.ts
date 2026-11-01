@@ -10,7 +10,13 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
-import { loadSecretBoxKey, sealSecret } from '../src/auth/crypto/secret-box';
+import { createCipheriv, randomBytes } from 'node:crypto';
+import {
+  loadSecretBoxKey,
+  openSecret,
+  sealSecret,
+  secretBoxKeyId,
+} from '../src/auth/crypto/secret-box';
 import { generateTotpSecret, totpCodeForStep, totpStep } from '../src/auth/crypto/totp';
 import { hashPassword } from '../src/auth/password/password-hasher';
 import { SMS_PROVIDER } from '../src/auth/sms/sms.provider';
@@ -245,6 +251,35 @@ describe('Super Admin login (password + authenticator app)', () => {
       .post('/api/v1/platform/auth/login')
       .send({ email: 'super.lock@platform.example.test', password: PASSWORD })
       .expect(401);
+  });
+});
+
+describe('authenticator key rotation (ADR-0005)', () => {
+  it('re-encrypts a secret in the old format under the current key on login', async () => {
+    const secret = generateTotpSecret();
+    secrets.legacy = secret;
+    const key = loadSecretBoxKey(process.env.PLATFORM_TOTP_KEY!);
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', key, iv);
+    const ct = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
+    const legacy = [
+      'v1',
+      ...[iv, ct, cipher.getAuthTag()].map((b) => b.toString('base64url')),
+    ].join('.');
+    const user = await platform.platformUser.create({
+      data: {
+        email: 'legacy.ops@platform.example.test',
+        displayName: 'Synthetic Legacy',
+        passwordHash: await hashPassword(PASSWORD),
+        totpSecretEncrypted: legacy,
+      },
+    });
+
+    await superAdminSignIn('legacy', 'legacy.ops@platform.example.test');
+
+    const after = await platform.platformUser.findUniqueOrThrow({ where: { id: user.id } });
+    expect(after.totpSecretEncrypted.startsWith(`v2.${secretBoxKeyId(key)}.`)).toBe(true);
+    expect(openSecret(after.totpSecretEncrypted, key)).toBe(secret);
   });
 });
 

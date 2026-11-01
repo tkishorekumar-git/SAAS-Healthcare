@@ -16,7 +16,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:e2e:db": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e-db.json --runInBand",
     "auth:secrets": "node scripts/generate-auth-secrets.mjs",
-    "platform:create-admin": "tsx scripts/create-platform-admin.ts"
+    "platform:create-admin": "tsx scripts/create-platform-admin.ts",
+    "platform:reseal-totp": "tsx scripts/reseal-platform-totp.ts",
+    "passwords:update": "node scripts/update-breached-passwords.mjs"
   },
   "dependencies": {
     "@kenisha/database": "workspace:*",

@@ -25,6 +25,7 @@ import {
   invitationLink,
   maskPhone,
 } from './invitation-token';
+import { describeError } from '../bootstrap/safe-exception.filter';
 
 export const INVITATION_TTL_MS = 72 * 3_600_000;
 const INVALID_INVITATION =
@@ -387,9 +388,7 @@ export class InvitationsService {
         invitationLink(this.webAppUrl, tenant.slug, token),
       );
     } catch (error) {
-      this.logger.error(
-        `Invitation SMS failed: ${error instanceof Error ? error.message : 'unknown error'}`,
-      );
+      this.logger.error(`Invitation SMS failed: ${describeError(error)}`);
     }
   }
 }

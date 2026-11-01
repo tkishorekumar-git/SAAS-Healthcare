@@ -76,7 +76,8 @@ tracked items with a gate.
 - Data-retention and erasure procedure: what is deleted, when, and what must be kept by law.
   Clinical retention periods **need confirmation from legal counsel** before Milestone 6
   stores records; until then nothing clinical is ever deleted automatically.
-- Internal **OWASP ASVS Level 2** checklist with a result per requirement (S3).
+- Internal **OWASP ASVS Level 2** review (S3): chapter by chapter in 5a; a
+  requirement-by-requirement sheet is prepared for the independent pen test.
 
 ### Field-level encryption (S2)
 
@@ -111,6 +112,39 @@ Milestone 6 starts only when:
 2. all new CI checks pass on `main`;
 3. no open high or critical finding remains;
 4. the product owner signs off this ADR as Accepted.
+
+## Implementation notes (Milestone 5a, 2026-11-01)
+
+- **Route access:** new `@SelfService()` marker for routes any signed-in hospital user may
+  call on their own account (`/auth/me`, `/auth/logout`, `/auth/logout-all`).
+  `RouteAccessCheck` stops the API at start-up if a route has no decision or a
+  contradictory one; `test/route-inventory.e2e-spec.ts` pins every route's decision.
+- **Errors:** `SafeExceptionFilter` plus an own JSON body parser error handler (Node's
+  parse errors quote the request body).
+- **Isolation and PHI:** `test/isolation.e2e-db-spec.ts` attacks every ID-bearing hospital
+  route from another hospital (and fails if a new one is not covered), sends a patient
+  token to every staff route, and records every log call at every level to search for
+  planted canary names and phone numbers. Mutation-checked: a logged phone number, a
+  permissive permission guard and a disabled alert each fail it.
+- **New-device alerts:** `known_devices` (hash of a 256-bit device token; web cookie
+  `kenisha_dev`, mobile body field). Alerts only for staff sign-ins without the SMS factor,
+  and not for a user's first device. Super Admins have no phone number on record, so their
+  alerts wait for an email provider.
+- **Key rotation:** JWTs carry `kid`; `JWT_PREVIOUS_PUBLIC_KEY` verifies old tokens during a
+  rotation; the API refuses a public key that does not match the private key. Sealed TOTP
+  secrets are `v2.<key id>.…`; `PLATFORM_TOTP_KEY_PREVIOUS`, re-seal on login and
+  `platform:reseal-totp`.
+- **Purge:** migration `20261101120000_security_review` adds `purge_expired_auth_data()`
+  (SECURITY DEFINER) and owner policies that admit only rows past retention, so even a
+  faulty function cannot delete live data (mutation-checked).
+- **Breached passwords (S4):** loaded from `apps/api/data/breached-passwords.txt`. By the
+  product owner's choice (2026-11-01) no list was downloaded: the file holds the existing
+  starter list, and `passwords:update <file>` merges a list the operator downloads.
+  Refreshing it is a gate before the first real hospital.
+- **Scanning:** gitleaks, OSV-Scanner and Semgrep run from pinned images in a new CI job
+  (not runnable on the development machine, which has no Docker; first verified on GitHub).
+- **Web:** the invitation token is removed from the URL after reading;
+  `Referrer-Policy: no-referrer` on `/invite`.
 
 ## Out of scope
 

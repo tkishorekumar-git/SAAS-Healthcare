@@ -1,33 +1,39 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 export const PASSWORD_MIN_LENGTH = 12;
 /** Upper bound protects the hasher from denial-of-service with huge inputs. */
 export const PASSWORD_MAX_LENGTH = 128;
 
 /**
- * A short list of the most common passwords and patterns. ADR-0003 notes that a full
- * breached-password service is a later enhancement.
+ * Breached and most common passwords (ADR-0005 S4), bundled with the API so no part of a
+ * password ever leaves the server. Loaded once, on first use.
  */
-const COMMON_PASSWORDS = new Set([
-  '123456789012',
-  'password1234',
-  'password@123',
-  'passw0rd1234',
-  'qwertyuiop12',
-  'qwerty123456',
-  'iloveyou1234',
-  'welcome@1234',
-  'welcome12345',
-  'admin@123456',
-  'administrator',
-  'letmein12345',
-  'changeme1234',
-  'abc123456789',
-  'india@123456',
-  'hospital@123',
-  'hospital1234',
-  'doctor@12345',
-  'kenisha@1234',
-  'kenisha12345',
-]);
+export const BREACHED_PASSWORDS_FILE = path.resolve(
+  __dirname,
+  '../../../data/breached-passwords.txt',
+);
+
+let breached: ReadonlySet<string> | undefined;
+
+export function parseBreachedPasswords(text: string): Set<string> {
+  const entries = new Set<string>();
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim().toLowerCase();
+    if (line && !line.startsWith('#')) entries.add(line);
+  }
+  return entries;
+}
+
+function breachedPasswords(): ReadonlySet<string> {
+  breached ??= parseBreachedPasswords(readFileSync(BREACHED_PASSWORDS_FILE, 'utf8'));
+  return breached;
+}
+
+/** Number of entries in the bundled list (reported at start-up). */
+export function breachedPasswordCount(): number {
+  return breachedPasswords().size;
+}
 
 const FORBIDDEN_FRAGMENTS = ['password', 'qwerty', 'kenisha', '123456789'];
 
@@ -48,7 +54,7 @@ export function checkPasswordPolicy(password: string, context: PasswordContext =
   if (password.length > PASSWORD_MAX_LENGTH) {
     problems.push(`must be at most ${PASSWORD_MAX_LENGTH} characters`);
   }
-  if (COMMON_PASSWORDS.has(lower) || FORBIDDEN_FRAGMENTS.some((f) => lower.includes(f))) {
+  if (breachedPasswords().has(lower) || FORBIDDEN_FRAGMENTS.some((f) => lower.includes(f))) {
     problems.push('is too common');
   }
   if (/^(.)\1+$/.test(password)) {

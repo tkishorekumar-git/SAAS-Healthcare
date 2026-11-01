@@ -1,0 +1,20 @@
+# gitleaks configuration (ADR-0005). Extends the default rules.
+# Allow-list entries must be reviewed: each one says why the match is not a secret.
+title = "Kenisha gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Values that are documented as non-secret"
+paths = [
+  # Throwaway credentials that exist only inside the ephemeral CI database container.
+  '''^\.github/workflows/ci\.yml$''',
+  # Placeholders only (never real values).
+  '''(^|/)\.env\.example$''',
+  # Tests: synthetic passwords and keys only (CLAUDE.md rule 7); test secrets are generated
+  # at run time (apps/api/test/support/auth-env.ts).
+  '''\.(spec|e2e-spec|e2e-db-spec|int\.test|test)\.tsx?$''',
+  # Generated Prisma client.
+  '''^packages/database/src/generated/''',
+]
